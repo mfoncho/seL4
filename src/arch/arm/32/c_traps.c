@@ -40,6 +40,7 @@ void VISIBLE NORETURN restore_user_context(void)
 
 #ifndef CONFIG_ARCH_ARM_V6
     writeTPIDRURW(getRegister(NODE_STATE(ksCurThread), TPIDRURW));
+    writeTPIDRURO(getRegister(NODE_STATE(ksCurThread), TLS_BASE));
 #endif
 
     if (config_set(CONFIG_ARM_HYPERVISOR_SUPPORT)) {
@@ -51,7 +52,7 @@ void VISIBLE NORETURN restore_user_context(void)
             /* Retore the user stack pointer */
             "pop {lr}                  \n"
             "msr sp_usr, lr            \n"
-            /* prepare the eception return lr */
+            /* prepare the exception return lr */
             "ldr lr, [sp, #4]          \n"
             "msr elr_hyp, lr           \n"
             /* prepare the user status register */
@@ -62,7 +63,7 @@ void VISIBLE NORETURN restore_user_context(void)
             /* Return to user */
             "eret"
             : /* no output */
-            : [cur_thread_reg] "r" (cur_thread_reg)
+            : [cur_thread_reg] "r"(cur_thread_reg)
             : "memory"
         );
     } else {
@@ -70,7 +71,7 @@ void VISIBLE NORETURN restore_user_context(void)
                   ldmdb sp, {r0-lr}^ \n\
                   rfeia sp"
                      : /* no output */
-                     : [cur_thread] "r" (cur_thread_reg + LR_svc * sizeof(word_t))
+                     : [cur_thread] "r"(cur_thread_reg + LR_svc * sizeof(word_t))
                     );
     }
     UNREACHABLE();

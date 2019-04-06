@@ -15,8 +15,7 @@
 #include <machine/io.h>
 #include <arch/machine.h>
 
-void
-handleFault(tcb_t *tptr)
+void handleFault(tcb_t *tptr)
 {
     exception_t status;
     seL4_Fault_t fault = current_fault;
@@ -27,8 +26,7 @@ handleFault(tcb_t *tptr)
     }
 }
 
-exception_t
-sendFaultIPC(tcb_t *tptr)
+exception_t sendFaultIPC(tcb_t *tptr)
 {
     cptr_t handlerCPtr;
     cap_t  handlerCap;
@@ -46,15 +44,16 @@ sendFaultIPC(tcb_t *tptr)
     handlerCap = lu_ret.cap;
 
     if (cap_get_capType(handlerCap) == cap_endpoint_cap &&
-            cap_endpoint_cap_get_capCanSend(handlerCap) &&
-            cap_endpoint_cap_get_capCanGrant(handlerCap)) {
+        cap_endpoint_cap_get_capCanSend(handlerCap) &&
+        (cap_endpoint_cap_get_capCanGrant(handlerCap) ||
+         cap_endpoint_cap_get_capCanGrantReply(handlerCap))) {
         tptr->tcbFault = current_fault;
         if (seL4_Fault_get_seL4_FaultType(current_fault) == seL4_Fault_CapFault) {
             tptr->tcbLookupFailure = original_lookup_fault;
         }
-        sendIPC(true, false,
+        sendIPC(true, true,
                 cap_endpoint_cap_get_capEPBadge(handlerCap),
-                true, tptr,
+                cap_endpoint_cap_get_capCanGrant(handlerCap), true, tptr,
                 EP_PTR(cap_endpoint_cap_get_capEPPtr(handlerCap)));
 
         return EXCEPTION_NONE;
@@ -67,32 +66,31 @@ sendFaultIPC(tcb_t *tptr)
 }
 
 #ifdef CONFIG_PRINTING
-static void
-print_fault(seL4_Fault_t f)
+static void print_fault(seL4_Fault_t f)
 {
     switch (seL4_Fault_get_seL4_FaultType(f)) {
     case seL4_Fault_NullFault:
         printf("null fault");
         break;
     case seL4_Fault_CapFault:
-        printf("cap fault in %s phase at address 0x%x",
+        printf("cap fault in %s phase at address %p",
                seL4_Fault_CapFault_get_inReceivePhase(f) ? "receive" : "send",
-               (unsigned int)seL4_Fault_CapFault_get_address(f));
+               (void *)seL4_Fault_CapFault_get_address(f));
         break;
     case seL4_Fault_VMFault:
-        printf("vm fault on %s at address 0x%x with status 0x%x",
+        printf("vm fault on %s at address %p with status %p",
                seL4_Fault_VMFault_get_instructionFault(f) ? "code" : "data",
-               (unsigned int)seL4_Fault_VMFault_get_address(f),
-               (unsigned int)seL4_Fault_VMFault_get_FSR(f));
+               (void *)seL4_Fault_VMFault_get_address(f),
+               (void *)seL4_Fault_VMFault_get_FSR(f));
         break;
     case seL4_Fault_UnknownSyscall:
-        printf("unknown syscall 0x%x",
-               (unsigned int)seL4_Fault_UnknownSyscall_get_syscallNumber(f));
+        printf("unknown syscall %p",
+               (void *)seL4_Fault_UnknownSyscall_get_syscallNumber(f));
         break;
     case seL4_Fault_UserException:
-        printf("user exception 0x%x code 0x%x",
-               (unsigned int)seL4_Fault_UserException_get_number(f),
-               (unsigned int)seL4_Fault_UserException_get_code(f));
+        printf("user exception %p code %p",
+               (void *)seL4_Fault_UserException_get_number(f),
+               (void *)seL4_Fault_UserException_get_code(f));
         break;
     default:
         printf("unknown fault");
@@ -102,8 +100,7 @@ print_fault(seL4_Fault_t f)
 #endif
 
 /* The second fault, ex2, is stored in the global current_fault */
-void
-handleDoubleFault(tcb_t *tptr, seL4_Fault_t ex1)
+void handleDoubleFault(tcb_t *tptr, seL4_Fault_t ex1)
 {
 #ifdef CONFIG_PRINTING
     seL4_Fault_t ex2 = current_fault;
@@ -116,7 +113,7 @@ handleDoubleFault(tcb_t *tptr, seL4_Fault_t ex1)
     printf("\nin thread %p \"%s\" ", tptr, tptr->tcbName);
 #endif /* CONFIG_DEBUG_BUILD */
 
-    printf("at address %p\n", (void*)getRestartPC(tptr));
+    printf("at address %p\n", (void *)getRestartPC(tptr));
     printf("With stack:\n");
     Arch_userStackTrace(tptr);
 #endif

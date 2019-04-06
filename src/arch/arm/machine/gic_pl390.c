@@ -18,6 +18,10 @@
         ( ((CPU)&0xff)<<24u ) \
     )
 #define TARGET_CPU0_ALLINT   TARGET_CPU_ALLINT(BIT(0))
+
+/* Use this to forward interrupts to all CPUs when debugging */
+#define TARGET_CPU_ALL_ALLINT   TARGET_CPU_ALLINT(0xff)
+
 #define IRQ_SET_ALL 0xffffffff;
 
 /* Shift positions for GICD_SGIR register */
@@ -28,21 +32,43 @@
 #ifndef GIC_PL390_DISTRIBUTOR_PPTR
 #error GIC_PL390_DISTRIBUTOR_PPTR must be defined for virtual memory access to the gic distributer
 #else  /* GIC_DISTRIBUTOR_PPTR */
-volatile struct gic_dist_map * const gic_dist =
-    (volatile struct gic_dist_map*)(GIC_PL390_DISTRIBUTOR_PPTR);
+volatile struct gic_dist_map *const gic_dist =
+    (volatile struct gic_dist_map *)(GIC_PL390_DISTRIBUTOR_PPTR);
 #endif /* GIC_DISTRIBUTOR_PPTR */
 
 #ifndef GIC_PL390_CONTROLLER_PPTR
 #error GIC_PL390_CONTROLLER_PPTR must be defined for virtual memory access to the gic cpu interface
 #else  /* GIC_CONTROLLER_PPTR */
-volatile struct gic_cpu_iface_map * const gic_cpuiface =
-    (volatile struct gic_cpu_iface_map*)(GIC_PL390_CONTROLLER_PPTR);
+volatile struct gic_cpu_iface_map *const gic_cpuiface =
+    (volatile struct gic_cpu_iface_map *)(GIC_PL390_CONTROLLER_PPTR);
 #endif /* GIC_CONTROLLER_PPTR */
 
 uint32_t active_irq[CONFIG_MAX_NUM_NODES] = {IRQ_NONE};
 
-BOOT_CODE static void
-dist_init(void)
+/* Get the target id for this processor. We rely on the constraint that the registers
+ * for PPI are read only and return only the current processor as the target.
+ * If this doesn't lead to a valid ID, we emit a warning and default to core 0.
+ */
+BOOT_CODE static uint8_t infer_cpu_gic_id(int nirqs)
+{
+    word_t i;
+    uint32_t target = 0;
+    for (i = 0; i < nirqs; i += 4) {
+        target = gic_dist->targets[i >> 2];
+        target |= target >> 16;
+        target |= target >> 8;
+        if (target) {
+            break;
+        }
+    }
+    if (!target) {
+        printf("Warning: Could not infer GIC interrupt target ID, assuming 0.\n");
+        target = BIT(0);
+    }
+    return target & 0xff;
+}
+
+BOOT_CODE static void dist_init(void)
 {
     word_t i;
     int nirqs = 32 * ((gic_dist->ic_type & 0x1f) + 1);
@@ -65,11 +91,12 @@ dist_init(void)
     }
 
     /*
-     * reset int target to cpu 0
-     * (Should really query which processor we're running on and use that)
+     * reset int target to current cpu
+     * We query which id that the GIC uses for us and use that.
      */
+    uint8_t target = infer_cpu_gic_id(nirqs);
     for (i = 0; i < nirqs; i += 4) {
-        gic_dist->targets[i >> 2] = TARGET_CPU0_ALLINT;
+        gic_dist->targets[i >> 2] = TARGET_CPU_ALLINT(target);
     }
 
     /* level-triggered, 1-N */
@@ -89,8 +116,7 @@ dist_init(void)
     gic_dist->enable = 1;
 }
 
-BOOT_CODE static void
-cpu_iface_init(void)
+BOOT_CODE static void cpu_iface_init(void)
 {
     uint32_t i;
 
@@ -130,8 +156,22 @@ cpu_iface_init(void)
     gic_cpuiface->icontrol = 1;
 }
 
-BOOT_CODE void
-initIRQController(void)
+void setIRQTrigger(irq_t irq, bool_t trigger)
+{
+    /* in the gic_config, there is a 2 bit field for each irq,
+     * setting the most significant bit of this field makes the irq edge-triggered,
+     * while 0 indicates that it is level-triggered */
+    word_t index = irq / 16u;
+    word_t offset = (irq % 16u) * 2;
+    if (trigger) {
+        /* set the bit */
+        gic_dist->config[index] |= BIT(offset + 1);
+    } else {
+        gic_dist->config[index] &= ~BIT(offset + 1);
+    }
+}
+
+BOOT_CODE void initIRQController(void)
 {
     dist_init();
 }
@@ -162,7 +202,14 @@ void ipiBroadcast(irq_t irq, bool_t includeSelfCPU)
 
 void ipi_send_target(irq_t irq, word_t cpuTargetList)
 {
-    gic_dist->sgi_control = (cpuTargetList << GICD_SGIR_CPUTARGETLIST_SHIFT) | (irq << GICD_SGIR_SGIINTID_SHIFT);
+    if (config_set(CONFIG_PLAT_TX2)) {
+        /* We need to swap the top 4 bits and the bottom 4 bits of the
+         * cpuTargetList since the A57 cores with logical core ID 0-3 are
+         * in cluster 1 and the Denver2 cores with logical core ID 4-5 are
+         * in cluster 0. */
+        cpuTargetList = ((cpuTargetList & 0xf) << 4) | ((cpuTargetList & 0xf0) >> 4);
+    }
+    gic_dist->sgi_control = (cpuTargetList << (GICD_SGIR_CPUTARGETLIST_SHIFT)) | (irq << GICD_SGIR_SGIINTID_SHIFT);
 }
 #endif /* ENABLE_SMP_SUPPORT */
 
@@ -172,7 +219,7 @@ void ipi_send_target(irq_t irq, word_t cpuTargetList)
 #error GIC_PL400_VCPUCTRL_PPTR must be defined for virtual memory access to the gic virtual cpu interface control
 #else  /* GIC_PL400_GICVCPUCTRL_PPTR */
 volatile struct gich_vcpu_ctrl_map *gic_vcpu_ctrl =
-    (volatile struct gich_vcpu_ctrl_map*)(GIC_PL400_VCPUCTRL_PPTR);
+    (volatile struct gich_vcpu_ctrl_map *)(GIC_PL400_VCPUCTRL_PPTR);
 #endif /* GIC_PL400_GICVCPUCTRL_PPTR */
 
 unsigned int gic_vcpu_num_list_regs;

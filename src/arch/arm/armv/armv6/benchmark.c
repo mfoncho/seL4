@@ -18,27 +18,26 @@
 uint64_t ccnt_num_overflows;
 #endif /* CONFIG_ARM_ENABLE_PMU_OVERFLOW_INTERRUPT */
 
-void
-armv_init_ccnt(void)
+void armv_init_ccnt(void)
 {
     uint32_t pmcr = 0;
 
 #ifdef CONFIG_ARM_ENABLE_PMU_OVERFLOW_INTERRUPT
     /* Enable generating interrupts on overflows */
     pmcr = BIT(6);
-    asm volatile (
+    asm volatile(
         "mcr p15, 0, %0, c15, c12, 0\n"
         :
-        : "r" (pmcr)
+        : "r"(pmcr)
     );
 #endif /* CONFIG_ARM_ENABLE_PMU_OVERFLOW_INTERRUPT */
 
     /* enable them */
     pmcr |= BIT(2) | BIT(0);
-    asm volatile (
+    asm volatile(
         "mcr p15, 0, %0, c15, c12, 0\n"
         : /* no outputs */
-        : "r" (pmcr)
+        : "r"(pmcr)
     );
 }
 

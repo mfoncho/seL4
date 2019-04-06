@@ -13,10 +13,10 @@
 
 #include <bootinfo.h>
 
-#ifdef CONFIG_ARCH_X86
+#ifndef CONFIG_ARCH_ARM
 #define MAX_NUM_FREEMEM_REG 16
 #else
-#define MAX_NUM_FREEMEM_REG 2
+#define MAX_NUM_FREEMEM_REG (ARRAY_SIZE(avail_p_regs) + 1)
 #endif
 
 /*
@@ -24,7 +24,7 @@
  * of the bootstrapping phase and the runtime phase of the kernel.
  */
 typedef cte_t  slot_t;
-typedef cte_t* slot_ptr_t;
+typedef cte_t *slot_ptr_t;
 #define SLOT_PTR(pptr, pos) (((slot_ptr_t)(pptr)) + (pos))
 #define pptr_of_cap (pptr_t)cap_get_capPtr
 
@@ -32,7 +32,7 @@ typedef cte_t* slot_ptr_t;
 
 typedef struct ndks_boot {
     region_t   freemem[MAX_NUM_FREEMEM_REG];
-    seL4_BootInfo*      bi_frame;
+    seL4_BootInfo      *bi_frame;
     seL4_SlotPos slot_pos_cur;
     seL4_SlotPos slot_pos_max;
 } ndks_boot_t;
@@ -41,8 +41,7 @@ extern ndks_boot_t ndks_boot;
 
 /* function prototypes */
 
-static inline bool_t
-is_reg_empty(region_t reg)
+static inline bool_t is_reg_empty(region_t reg)
 {
     return reg.start == reg.end;
 }
@@ -55,7 +54,8 @@ bool_t provide_cap(cap_t root_cnode_cap, cap_t cap);
 cap_t create_it_asid_pool(cap_t root_cnode_cap);
 void write_it_pd_pts(cap_t root_cnode_cap, cap_t it_pd_cap);
 bool_t create_idle_thread(void);
-bool_t create_untypeds_for_region(cap_t root_cnode_cap, bool_t device_memory, region_t reg, seL4_SlotPos first_untyped_slot);
+bool_t create_untypeds_for_region(cap_t root_cnode_cap, bool_t device_memory, region_t reg,
+                                  seL4_SlotPos first_untyped_slot);
 bool_t create_kernel_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg, seL4_SlotPos first_untyped_slot);
 void bi_finalise(void);
 bool_t create_irq_cnode(void);

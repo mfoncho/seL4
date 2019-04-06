@@ -20,9 +20,12 @@ if(KernelPlatformExynos5250 OR KernelPlatformExynos5410 OR KernelPlatformExynos5
     config_set(KernelPlatform PLAT "exynos5")
     config_set(KernelArmMach MACH "exynos")
     config_set(KernelPlatExynos5 PLAT_EXYNOS5 ON)
-    if (KernelPlatformExynos5410 OR KernelPlatformExynos5422)
+    if(KernelPlatformExynos5410 OR KernelPlatformExynos5422)
         config_set(KernelPlatExynos54xx PLAT_EXYNOS54XX ON)
     endif()
+
+    list(APPEND KernelDTSList "tools/dts/${KernelARMPlatform}.dts")
+    list(APPEND KernelDTSList "src/plat/exynos5/overlay-${KernelARMPlatform}.dts")
 else()
     config_set(KernelPlatExynos5 PLAT_EXYNOS5 OFF)
     config_set(KernelPlatExynos54xx PLAT_EXYNOS54XX OFF)
@@ -30,9 +33,5 @@ endif()
 
 add_sources(
     DEP "KernelPlatExynos5"
-    CFILES
-        src/arch/arm/machine/generic_timer.c
-        src/plat/exynos5/machine/hardware.c
-        src/plat/exynos5/machine/l2cache.c
-        src/plat/exynos_common/io.c
+    CFILES src/arch/arm/machine/gic_pl390.c src/arch/arm/machine/l2c_nop.c
 )

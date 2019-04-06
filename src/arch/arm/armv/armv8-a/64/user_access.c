@@ -30,16 +30,15 @@ static void check_export_arch_timer(void)
     uint32_t val;
     MRS("CNTKCTL_EL1", val);
 #ifdef CONFIG_EXPORT_PCNT_USER
-    v |= EL0PCTEN;
+    val |= EL0PCTEN;
 #endif
 #ifdef CONFIG_EXPORT_VCNT_USER
-    v |= EL0VCTEN;
+    val |= EL0VCTEN;
 #endif
     MSR("CNTKCTL_EL1", val);
 }
 
-void
-armv_init_user_access(void)
+void armv_init_user_access(void)
 {
     check_export_pmu();
     check_export_arch_timer();

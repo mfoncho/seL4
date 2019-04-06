@@ -32,7 +32,13 @@ extern pde_t armKSGlobalKernelPDs[BIT(PUD_INDEX_BITS)][BIT(PD_INDEX_BITS)] VISIB
 extern pte_t armKSGlobalKernelPT[BIT(PT_INDEX_BITS)] VISIBLE;
 
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
-extern vcpu_t *armHSCurVCPU;
-extern bool_t armHSVCPUActive;
+
+extern asid_t armKSHWASIDTable[BIT(hwASIDBits)] VISIBLE;
+extern hw_asid_t armKSNextASID VISIBLE;
 #endif
+
+#ifdef CONFIG_BENCHMARK_USE_KERNEL_LOG_BUFFER
+pde_t *armKSGlobalLogPDE;
+#endif
+
 #endif /* __ARCH_MODEL_STATEDATA_64_H */

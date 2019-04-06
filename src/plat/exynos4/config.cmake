@@ -17,11 +17,10 @@ if(KernelPlatformExynos4)
     set(KernelArchArmV7a ON)
     config_set(KernelPlatform PLAT "exynos4")
     config_set(KernelArmMach MACH "exynos")
+    list(APPEND KernelDTSList "tools/dts/exynos4.dts")
 endif()
 
 add_sources(
     DEP "KernelPlatformExynos4"
-    CFILES
-        src/plat/exynos_common/io.c
-        src/plat/exynos4/machine/hardware.c
+    CFILES src/arch/arm/machine/l2c_310.c src/arch/arm/machine/gic_pl390.c
 )

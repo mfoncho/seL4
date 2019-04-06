@@ -14,7 +14,7 @@
 #define __ARCH_MACHINE_HARDWARE_64_H
 
 #include <config.h>
-#include <mode/api/constants.h>
+#include <sel4/sel4_arch/constants.h>
 
 #define PAGE_BITS seL4_PageBits
 
@@ -59,8 +59,7 @@ enum frameSizeConstants {
     ARMHugePageBits     = seL4_HugePageBits
 };
 
-static inline word_t CONST
-pageBitsForSize(vm_page_size_t pagesize)
+static inline word_t CONST pageBitsForSize(vm_page_size_t pagesize)
 {
     switch (pagesize) {
     case ARMSmallPage:

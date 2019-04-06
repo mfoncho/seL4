@@ -53,8 +53,7 @@ word_t getObjectSize(word_t t, word_t userObjSize)
     }
 }
 
-deriveCap_ret_t
-deriveCap(cte_t *slot, cap_t cap)
+deriveCap_ret_t deriveCap(cte_t *slot, cap_t cap)
 {
     deriveCap_ret_t ret;
 
@@ -95,8 +94,7 @@ deriveCap(cte_t *slot, cap_t cap)
     return ret;
 }
 
-finaliseCap_ret_t
-finaliseCap(cap_t cap, bool_t final, bool_t exposed)
+finaliseCap_ret_t finaliseCap(cap_t cap, bool_t final, bool_t exposed)
 {
     finaliseCap_ret_t fc_ret;
 
@@ -142,7 +140,7 @@ finaliseCap(cap_t cap, bool_t final, bool_t exposed)
         if (final) {
             fc_ret.remainder =
                 Zombie_new(
-                    1 << cap_cnode_cap_get_capCNodeRadix(cap),
+                    1ul << cap_cnode_cap_get_capCNodeRadix(cap),
                     cap_cnode_cap_get_capCNodeRadix(cap),
                     cap_cnode_cap_get_capCNodePtr(cap)
                 );
@@ -201,13 +199,13 @@ finaliseCap(cap_t cap, bool_t final, bool_t exposed)
     return fc_ret;
 }
 
-bool_t CONST
-hasCancelSendRights(cap_t cap)
+bool_t CONST hasCancelSendRights(cap_t cap)
 {
     switch (cap_get_capType(cap)) {
     case cap_endpoint_cap:
         return cap_endpoint_cap_get_capCanSend(cap) &&
                cap_endpoint_cap_get_capCanReceive(cap) &&
+               cap_endpoint_cap_get_capCanGrantReply(cap) &&
                cap_endpoint_cap_get_capCanGrant(cap);
 
     default:
@@ -215,8 +213,7 @@ hasCancelSendRights(cap_t cap)
     }
 }
 
-bool_t CONST
-sameRegionAs(cap_t cap_a, cap_t cap_b)
+bool_t CONST sameRegionAs(cap_t cap_a, cap_t cap_b)
 {
     switch (cap_get_capType(cap_a)) {
     case cap_untyped_cap:
@@ -278,7 +275,7 @@ sameRegionAs(cap_t cap_a, cap_t cap_b)
 
     case cap_irq_control_cap:
         if (cap_get_capType(cap_b) == cap_irq_control_cap ||
-                cap_get_capType(cap_b) == cap_irq_handler_cap) {
+            cap_get_capType(cap_b) == cap_irq_handler_cap) {
             return true;
         }
         break;
@@ -292,7 +289,7 @@ sameRegionAs(cap_t cap_a, cap_t cap_b)
 
     default:
         if (isArchCap(cap_a) &&
-                isArchCap(cap_b)) {
+            isArchCap(cap_b)) {
             return Arch_sameRegionAs(cap_a, cap_b);
         }
         break;
@@ -301,14 +298,13 @@ sameRegionAs(cap_t cap_a, cap_t cap_b)
     return false;
 }
 
-bool_t CONST
-sameObjectAs(cap_t cap_a, cap_t cap_b)
+bool_t CONST sameObjectAs(cap_t cap_a, cap_t cap_b)
 {
     if (cap_get_capType(cap_a) == cap_untyped_cap) {
         return false;
     }
     if (cap_get_capType(cap_a) == cap_irq_control_cap &&
-            cap_get_capType(cap_b) == cap_irq_handler_cap) {
+        cap_get_capType(cap_b) == cap_irq_handler_cap) {
         return false;
     }
     if (isArchCap(cap_a) && isArchCap(cap_b)) {
@@ -317,8 +313,7 @@ sameObjectAs(cap_t cap_a, cap_t cap_b)
     return sameRegionAs(cap_a, cap_b);
 }
 
-cap_t CONST
-updateCapData(bool_t preserve, word_t newData, cap_t cap)
+cap_t CONST updateCapData(bool_t preserve, word_t newData, cap_t cap)
 {
     if (isArchCap(cap)) {
         return Arch_updateCapData(preserve, newData, cap);
@@ -364,8 +359,7 @@ updateCapData(bool_t preserve, word_t newData, cap_t cap)
     }
 }
 
-cap_t CONST
-maskCapRights(seL4_CapRights_t cap_rights, cap_t cap)
+cap_t CONST maskCapRights(seL4_CapRights_t cap_rights, cap_t cap)
 {
     if (isArchCap(cap)) {
         return Arch_maskCapRights(cap_rights, cap);
@@ -376,7 +370,6 @@ maskCapRights(seL4_CapRights_t cap_rights, cap_t cap)
     case cap_domain_cap:
     case cap_cnode_cap:
     case cap_untyped_cap:
-    case cap_reply_cap:
     case cap_irq_control_cap:
     case cap_irq_handler_cap:
     case cap_zombie_cap:
@@ -395,6 +388,9 @@ maskCapRights(seL4_CapRights_t cap_rights, cap_t cap)
         new_cap = cap_endpoint_cap_set_capCanGrant(
                       new_cap, cap_endpoint_cap_get_capCanGrant(cap) &
                       seL4_CapRights_get_capAllowGrant(cap_rights));
+        new_cap = cap_endpoint_cap_set_capCanGrantReply(
+                      new_cap, cap_endpoint_cap_get_capCanGrantReply(cap) &
+                      seL4_CapRights_get_capAllowGrantReply(cap_rights));
 
         return new_cap;
     }
@@ -411,14 +407,22 @@ maskCapRights(seL4_CapRights_t cap_rights, cap_t cap)
 
         return new_cap;
     }
+    case cap_reply_cap: {
+        cap_t new_cap;
+
+        new_cap = cap_reply_cap_set_capReplyCanGrant(
+                      cap, cap_reply_cap_get_capReplyCanGrant(cap) &
+                      seL4_CapRights_get_capAllowGrant(cap_rights));
+        return new_cap;
+    }
+
 
     default:
         fail("Invalid cap type"); /* Sentinel for invalid enums */
     }
 }
 
-cap_t
-createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
+cap_t createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
 {
     /* Handle architecture-specific objects. */
     if (t >= (object_t) seL4_NonArchObjectTypeCount) {
@@ -456,7 +460,7 @@ createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
     case seL4_EndpointObject:
         /** AUXUPD: "(True, ptr_retyp
           (Ptr (ptr_val \<acute>regionBase) :: endpoint_C ptr))" */
-        return cap_endpoint_cap_new(0, true, true, true,
+        return cap_endpoint_cap_new(0, true, true, true, true,
                                     EP_REF(regionBase));
 
     case seL4_NotificationObject:
@@ -485,9 +489,8 @@ createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
     }
 }
 
-void
-createNewObjects(object_t t, cte_t *parent, slot_range_t slots,
-                 void *regionBase, word_t userSize, bool_t deviceMemory)
+void createNewObjects(object_t t, cte_t *parent, slot_range_t slots,
+                      void *regionBase, word_t userSize, bool_t deviceMemory)
 {
     word_t objectSize;
     void *nextFreeArea;
@@ -514,11 +517,10 @@ createNewObjects(object_t t, cte_t *parent, slot_range_t slots,
     }
 }
 
-exception_t
-decodeInvocation(word_t invLabel, word_t length,
-                 cptr_t capIndex, cte_t *slot, cap_t cap,
-                 extra_caps_t excaps, bool_t block, bool_t call,
-                 word_t *buffer)
+exception_t decodeInvocation(word_t invLabel, word_t length,
+                             cptr_t capIndex, cte_t *slot, cap_t cap,
+                             extra_caps_t excaps, bool_t block, bool_t call,
+                             word_t *buffer)
 {
     if (isArchCap(cap)) {
         return Arch_decodeInvocation(invLabel, length, capIndex,
@@ -551,7 +553,8 @@ decodeInvocation(word_t invLabel, word_t length,
         return performInvocation_Endpoint(
                    EP_PTR(cap_endpoint_cap_get_capEPPtr(cap)),
                    cap_endpoint_cap_get_capEPBadge(cap),
-                   cap_endpoint_cap_get_capCanGrant(cap), block, call);
+                   cap_endpoint_cap_get_capCanGrant(cap),
+                   cap_endpoint_cap_get_capCanGrantReply(cap), block, call);
 
     case cap_notification_cap: {
         if (unlikely(!cap_notification_cap_get_capNtfnCanSend(cap))) {
@@ -579,7 +582,8 @@ decodeInvocation(word_t invLabel, word_t length,
 
         setThreadState(NODE_STATE(ksCurThread), ThreadState_Restart);
         return performInvocation_Reply(
-                   TCB_PTR(cap_reply_cap_get_capTCBPtr(cap)), slot);
+                   TCB_PTR(cap_reply_cap_get_capTCBPtr(cap)), slot,
+                   cap_reply_cap_get_capReplyCanGrant(cap));
 
     case cap_thread_cap:
         return decodeTCBInvocation(invLabel, length, cap,
@@ -608,27 +612,24 @@ decodeInvocation(word_t invLabel, word_t length,
     }
 }
 
-exception_t
-performInvocation_Endpoint(endpoint_t *ep, word_t badge,
-                           bool_t canGrant, bool_t block,
-                           bool_t call)
+exception_t performInvocation_Endpoint(endpoint_t *ep, word_t badge,
+                                       bool_t canGrant, bool_t canGrantReply,
+                                       bool_t block, bool_t call)
 {
-    sendIPC(block, call, badge, canGrant, NODE_STATE(ksCurThread), ep);
+    sendIPC(block, call, badge, canGrant, canGrantReply, NODE_STATE(ksCurThread), ep);
 
     return EXCEPTION_NONE;
 }
 
-exception_t
-performInvocation_Notification(notification_t *ntfn, word_t badge)
+exception_t performInvocation_Notification(notification_t *ntfn, word_t badge)
 {
     sendSignal(ntfn, badge);
 
     return EXCEPTION_NONE;
 }
 
-exception_t
-performInvocation_Reply(tcb_t *thread, cte_t *slot)
+exception_t performInvocation_Reply(tcb_t *thread, cte_t *slot, bool_t canGrant)
 {
-    doReplyTransfer(NODE_STATE(ksCurThread), thread, slot);
+    doReplyTransfer(NODE_STATE(ksCurThread), thread, slot, canGrant);
     return EXCEPTION_NONE;
 }

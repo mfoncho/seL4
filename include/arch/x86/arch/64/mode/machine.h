@@ -113,10 +113,10 @@ static inline void setCurrentUserVSpaceRoot(paddr_t addr, word_t pcid)
 }
 
 /* GDT installation */
-void x64_install_gdt(gdt_idt_ptr_t* gdt_idt_ptr);
+void x64_install_gdt(gdt_idt_ptr_t *gdt_idt_ptr);
 
 /* IDT installation */
-void x64_install_idt(gdt_idt_ptr_t* gdt_idt_ptr);
+void x64_install_idt(gdt_idt_ptr_t *gdt_idt_ptr);
 
 /* LDT installation */
 void x64_install_ldt(uint32_t ldt_sel);
@@ -129,7 +129,7 @@ void handle_fastsyscall(void);
 void init_syscall_msrs(void);
 
 /* Get current stack pointer */
-static inline void* get_current_esp(void)
+static inline void *get_current_esp(void)
 {
     word_t stack;
     void *result;
@@ -153,7 +153,7 @@ static inline void invalidateLocalPCID(word_t type, void *vaddr, asid_t asid)
         invpcid_desc_t desc;
         desc.asid = asid & 0xfff;
         desc.addr = (uint64_t)vaddr;
-        asm volatile ("invpcid %1, %0" :: "r"(type), "m"(desc));
+        asm volatile("invpcid %1, %0" :: "r"(type), "m"(desc));
     } else {
         switch (type) {
         case INVPCID_TYPE_ADDR:
@@ -180,17 +180,17 @@ static inline void invalidateLocalTranslationSingle(vptr_t vptr)
     /* As this may be used to invalidate global mappings by the kernel,
      * and as its only used in boot code, we can just invalidate
      * absolutely everything form the tlb */
-    invalidateLocalPCID(INVPCID_TYPE_ALL_GLOBAL, (void*)0, 0);
+    invalidateLocalPCID(INVPCID_TYPE_ALL_GLOBAL, (void *)0, 0);
 }
 
 static inline void invalidateLocalTranslationSingleASID(vptr_t vptr, asid_t asid)
 {
-    invalidateLocalPCID(INVPCID_TYPE_ADDR, (void*)vptr, asid);
+    invalidateLocalPCID(INVPCID_TYPE_ADDR, (void *)vptr, asid);
 }
 
 static inline void invalidateLocalTranslationAll(void)
 {
-    invalidateLocalPCID(INVPCID_TYPE_ALL_GLOBAL, (void*)0, 0);
+    invalidateLocalPCID(INVPCID_TYPE_ALL_GLOBAL, (void *)0, 0);
 }
 
 static inline void invalidateLocalPageStructureCacheASID(paddr_t root, asid_t asid)
@@ -207,8 +207,8 @@ static inline void invalidateLocalPageStructureCacheASID(paddr_t root, asid_t as
             "mov %[new_cr3], %%cr3\n"
             "mov %[old_cr3], %%cr3\n"
             ::
-            [new_cr3] "r" (makeCR3(root, asid).words[0]),
-            [old_cr3] "r" (cr3.words[0] | BIT(63))
+            [new_cr3] "r"(makeCR3(root, asid).words[0]),
+            [old_cr3] "r"(cr3.words[0] | BIT(63))
         );
     } else {
         /* just invalidate the page structure cache as per normal, by
@@ -236,12 +236,12 @@ static inline rdmsr_safe_result_t x86_rdmsr_safe(const uint32_t reg)
          1: \n\
          movq (%[returnto_addr]), %[returnto] \n\
          movq $0, (%[returnto_addr])"
-        : [returnto] "=&r" (returnto),
-        [temp] "=&r" (temp),
-        [high] "=&d" (high),
-        [low] "=&a" (low)
-        : [returnto_addr] "r" (&ARCH_NODE_STATE(x86KSGPExceptReturnTo)),
-        [reg] "c" (reg)
+        : [returnto] "=&r"(returnto),
+        [temp] "=&r"(temp),
+        [high] "=&d"(high),
+        [low] "=&a"(low)
+        : [returnto_addr] "r"(&ARCH_NODE_STATE(x86KSGPExceptReturnTo)),
+        [reg] "c"(reg)
         : "memory"
     );
     result.success = returnto != 0;
@@ -253,25 +253,25 @@ static inline rdmsr_safe_result_t x86_rdmsr_safe(const uint32_t reg)
 
 static inline void x86_write_fs_base_impl(word_t base)
 {
-    asm volatile ("wrfsbase %0"::"r"(base));
+    asm volatile("wrfsbase %0"::"r"(base));
 }
 
 static inline void x86_write_gs_base_impl(word_t base)
 {
-    asm volatile ("wrgsbase %0"::"r"(base));
+    asm volatile("wrgsbase %0"::"r"(base));
 }
 
 static inline word_t x86_read_fs_base_impl(void)
 {
     word_t base = 0;
-    asm volatile ("rdfsbase %0":"=r"(base));
+    asm volatile("rdfsbase %0":"=r"(base));
     return base;
 }
 
 static inline word_t x86_read_gs_base_impl(void)
 {
     word_t base = 0;
-    asm volatile ("rdgsbase %0":"=r"(base));
+    asm volatile("rdgsbase %0":"=r"(base));
     return base;
 }
 

@@ -17,7 +17,7 @@ Contributions to the seL4 kernel repository are welcome!
 
 Please note that GD and Data61 require a contributor license agreement (CLA)
 to be signed for all external contributions. Please see
-https://seL4.systems/Community/Contributing for details (it is a fairly short
+[1] for details (it is a fairly short
 and standard CLA).
 
 For the `seL4/seL4` repository, we can review pull requests directly on
@@ -32,8 +32,11 @@ comment.
 
 ## Kernel Development Process
 
-Please read https://seL4.systems/Community/Contributing
+In addition to our guidelines[1], the kernel has additional history requirements:
 
+* Please try to make sure every commit is in a working state to facilitate bisecting.
+    + unless there is a concrete reason, if so please state that reason in the commit message.
+* Try to keep commits small for ease of reviewing.
 
 ## Build/Test
 
@@ -50,3 +53,5 @@ unverified platform, etc, or they should come with proof updates to `l4v`.
 
 If you have larger changes or additions, it might be a good idea to get in
 contact with us as <devel@sel4.systems>, so we can help you get started.
+
+[1] https://docs.sel4.systems/Contributing

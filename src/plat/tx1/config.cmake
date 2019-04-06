@@ -18,13 +18,12 @@ if(KernelPlatformTx1)
     config_set(KernelPlatform PLAT "tx1")
     config_set(KernelArmMach MACH "nvidia")
     set(KernelHaveFPU ON)
+    set(KernelArmPASizeBits44 ON)
+    list(APPEND KernelDTSList "tools/dts/tx1.dts")
+    list(APPEND KernelDTSList "src/plat/tx1/overlay-tx1.dts")
 endif()
 
 add_sources(
     DEP "KernelPlatformTx1"
-    CFILES
-        src/plat/tx1/machine/hardware.c
-        src/plat/tx1/machine/io.c
-        src/plat/tx1/machine/l2cache.c
-        src/arch/arm/machine/generic_timer.c
+    CFILES src/arch/arm/machine/gic_pl390.c src/arch/arm/machine/l2c_nop.c
 )

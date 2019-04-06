@@ -54,7 +54,7 @@
 #include <util.h>
 #include <arch/types.h>
 #include <arch/machine/debug_conf.h>
-#include <plat/api/constants.h>
+#include <sel4/plat/api/constants.h>
 
 /* These are the indices of the registers in the
  * saved thread context.  The values are determined
@@ -95,23 +95,24 @@ enum _register {
     CPSR = 16,
 
     FaultInstruction = 17,
+    TLS_BASE = 18,
 #ifndef CONFIG_ARCH_ARM_V6
     /* user readable/writable thread ID register.
      * name comes from the ARM manual */
-    TPIDRURW = 18,
-    n_contextRegisters = 19,
+    TPIDRURW = 19,
+    n_contextRegisters = 20,
 #else
-    n_contextRegisters = 18,
+    n_contextRegisters = 19,
 #endif
 };
 
-compile_assert(sp_offset_correct, SP * sizeof(word_t) == PT_SP)
-compile_assert(lr_svc_offset_correct, LR_svc * sizeof(word_t) == PT_LR_svc)
+compile_assert(sp_offset_correct, SP *sizeof(word_t) == PT_SP)
+compile_assert(lr_svc_offset_correct, LR_svc *sizeof(word_t) == PT_LR_svc)
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
-compile_assert(elr_hyp_offset_correct, ELR_hyp * sizeof(word_t) == PT_ELR_hyp)
+compile_assert(elr_hyp_offset_correct, ELR_hyp *sizeof(word_t) == PT_ELR_hyp)
 #endif
-compile_assert(faultinstruction_offset_correct, FaultInstruction * sizeof(word_t) == PT_FaultInstruction)
-compile_assert(r8_offset_correct, R8 * sizeof(word_t) == PT_R8)
+compile_assert(faultinstruction_offset_correct, FaultInstruction *sizeof(word_t) == PT_FaultInstruction)
+compile_assert(r8_offset_correct, R8 *sizeof(word_t) == PT_R8)
 
 typedef word_t register_t;
 
@@ -200,7 +201,7 @@ unverified_compile_assert(registers_are_first_member_of_user_context,
 void Arch_initBreakpointContext(user_context_t *context);
 #endif
 
-static inline void Arch_initContext(user_context_t* context)
+static inline void Arch_initContext(user_context_t *context)
 {
     context->registers[CPSR] = CPSR_USER;
 #ifdef ARM_BASE_CP14_SAVE_AND_RESTORE

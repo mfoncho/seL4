@@ -29,8 +29,7 @@
 
 /* functions exactly corresponding to abstract specification */
 
-BOOT_CODE static void
-init_irqs(cap_t root_cnode_cap)
+BOOT_CODE static void init_irqs(cap_t root_cnode_cap)
 {
     irq_t i;
 
@@ -80,8 +79,7 @@ typedef struct allocated_p_region {
 
 BOOT_BSS static allocated_p_region_t allocated_p_regions;
 
-BOOT_CODE static void
-merge_regions(void)
+BOOT_CODE static void merge_regions(void)
 {
     unsigned int i, j;
     /* Walk through all the regions and see if any can get merged */
@@ -107,15 +105,14 @@ static UNUSED BOOT_CODE bool_t p_region_overlaps(p_region_t reg)
     unsigned int i;
     for (i = 0; i < allocated_p_regions.cur_pos; i++) {
         if (allocated_p_regions.regs[i].start < reg.end &&
-                allocated_p_regions.regs[i].end > reg.start) {
+            allocated_p_regions.regs[i].end > reg.start) {
             return true;
         }
     }
     return false;
 }
 
-BOOT_CODE bool_t
-add_allocated_p_region(p_region_t reg)
+BOOT_CODE bool_t add_allocated_p_region(p_region_t reg)
 {
     unsigned int i, j;
 
@@ -164,14 +161,12 @@ add_allocated_p_region(p_region_t reg)
     return true;
 }
 
-BOOT_CODE void
-init_allocated_p_regions()
+BOOT_CODE void init_allocated_p_regions(void)
 {
     allocated_p_regions.cur_pos = 0;
 }
 
-BOOT_CODE static bool_t
-create_untypeds(
+BOOT_CODE static bool_t create_untypeds(
     cap_t root_cnode_cap,
     region_t boot_mem_reuse_reg)
 {
@@ -214,8 +209,7 @@ create_untypeds(
     return true;
 }
 
-BOOT_CODE static void
-init_freemem(p_region_t ui_p_reg, mem_p_regs_t mem_p_regs)
+BOOT_CODE static void init_freemem(p_region_t ui_p_reg, mem_p_regs_t mem_p_regs)
 {
     word_t i;
     /* we are guaranteed that we started loading the user image after the kernel
@@ -241,15 +235,14 @@ init_freemem(p_region_t ui_p_reg, mem_p_regs_t mem_p_regs)
 
 /* This function initialises a node's kernel state. It does NOT initialise the CPU. */
 
-BOOT_CODE bool_t
-init_sys_state(
+BOOT_CODE bool_t init_sys_state(
     cpu_id_t      cpu_id,
     mem_p_regs_t  mem_p_regs,
     ui_info_t     ui_info,
     p_region_t    boot_mem_reuse_p_reg,
     /* parameters below not modeled in abstract specification */
     uint32_t      num_drhu,
-    paddr_t*      drhu_list,
+    paddr_t      *drhu_list,
     acpi_rmrr_list_t *rmrr_list,
     acpi_rsdp_t      *acpi_rsdp,
     seL4_X86_BootInfo_VBE *vbe,
@@ -313,14 +306,8 @@ init_sys_state(
 
     /* create the IO port cap */
     write_slot(
-        SLOT_PTR(pptr_of_cap(root_cnode_cap), seL4_CapIOPort),
-        cap_io_port_cap_new(
-            0,                /* first port */
-            NUM_IO_PORTS - 1  /* last port  */
-#ifdef CONFIG_VTX
-            , VPID_INVALID
-#endif
-        )
+        SLOT_PTR(pptr_of_cap(root_cnode_cap), seL4_CapIOPortControl),
+        cap_io_port_control_cap_new()
     );
 
     /* create the cap for managing thread domains */
@@ -351,7 +338,7 @@ init_sys_state(
     if (vbe->vbeMode != -1) {
         vbe->header.id = SEL4_BOOTINFO_HEADER_X86_VBE;
         vbe->header.len = sizeof(seL4_X86_BootInfo_VBE);
-        memcpy((void*)(extra_bi_region.start + extra_bi_offset), vbe, sizeof(seL4_X86_BootInfo_VBE));
+        memcpy((void *)(extra_bi_region.start + extra_bi_offset), vbe, sizeof(seL4_X86_BootInfo_VBE));
         extra_bi_offset += sizeof(seL4_X86_BootInfo_VBE);
     }
 
@@ -360,9 +347,9 @@ init_sys_state(
         seL4_BootInfoHeader header;
         header.id = SEL4_BOOTINFO_HEADER_X86_ACPI_RSDP;
         header.len = sizeof(header) + sizeof(*acpi_rsdp);
-        *(seL4_BootInfoHeader*)(extra_bi_region.start + extra_bi_offset) = header;
+        *(seL4_BootInfoHeader *)(extra_bi_region.start + extra_bi_offset) = header;
         extra_bi_offset += sizeof(header);
-        memcpy((void*)(extra_bi_region.start + extra_bi_offset), acpi_rsdp, sizeof(*acpi_rsdp));
+        memcpy((void *)(extra_bi_region.start + extra_bi_offset), acpi_rsdp, sizeof(*acpi_rsdp));
         extra_bi_offset += sizeof(*acpi_rsdp);
     }
 
@@ -371,16 +358,16 @@ init_sys_state(
         seL4_BootInfoHeader header;
         header.id = SEL4_BOOTINFO_HEADER_X86_FRAMEBUFFER;
         header.len = sizeof(header) + sizeof(*fb_info);
-        *(seL4_BootInfoHeader*)(extra_bi_region.start + extra_bi_offset) = header;
+        *(seL4_BootInfoHeader *)(extra_bi_region.start + extra_bi_offset) = header;
         extra_bi_offset += sizeof(header);
-        memcpy((void*)(extra_bi_region.start + extra_bi_offset), fb_info, sizeof(*fb_info));
+        memcpy((void *)(extra_bi_region.start + extra_bi_offset), fb_info, sizeof(*fb_info));
         extra_bi_offset += sizeof(*fb_info);
     }
 
     /* populate multiboot mmap block */
     mb_mmap->header.id = SEL4_BOOTINFO_HEADER_X86_MBMMAP;
     mb_mmap->header.len = mb_mmap_size;
-    memcpy((void*)(extra_bi_region.start + extra_bi_offset), mb_mmap, mb_mmap_size);
+    memcpy((void *)(extra_bi_region.start + extra_bi_offset), mb_mmap, mb_mmap_size);
     extra_bi_offset += mb_mmap_size;
 
     /* populate tsc frequency block */
@@ -388,9 +375,9 @@ init_sys_state(
         seL4_BootInfoHeader header;
         header.id = SEL4_BOOTINFO_HEADER_X86_TSC_FREQ;
         header.len = sizeof(header) + 4;
-        *(seL4_BootInfoHeader*)(extra_bi_region.start + extra_bi_offset) = header;
+        *(seL4_BootInfoHeader *)(extra_bi_region.start + extra_bi_offset) = header;
         extra_bi_offset += sizeof(header);
-        *(uint32_t*)(extra_bi_region.start + extra_bi_offset) = tsc_freq;
+        *(uint32_t *)(extra_bi_region.start + extra_bi_offset) = tsc_freq;
         extra_bi_offset += 4;
     }
 
@@ -398,7 +385,7 @@ init_sys_state(
     seL4_BootInfoHeader padding_header;
     padding_header.id = SEL4_BOOTINFO_HEADER_PADDING;
     padding_header.len = (extra_bi_region.end - extra_bi_region.start) - extra_bi_offset;
-    *(seL4_BootInfoHeader*)(extra_bi_region.start + extra_bi_offset) = padding_header;
+    *(seL4_BootInfoHeader *)(extra_bi_region.start + extra_bi_offset) = padding_header;
 
     /* Construct an initial address space with enough virtual addresses
      * to cover the user image + ipc buffer and bootinfo frames */
@@ -422,7 +409,7 @@ init_sys_state(
             it_vspace_cap,
             extra_bi_region,
             true,
-            pptr_to_paddr((void*)(extra_bi_region.start - extra_bi_frame_vptr))
+            pptr_to_paddr((void *)(extra_bi_region.start - extra_bi_frame_vptr))
         );
     if (!extra_bi_ret.success) {
         return false;
@@ -502,8 +489,7 @@ init_sys_state(
 
 /* This function initialises the CPU. It does NOT initialise any kernel state. */
 
-BOOT_CODE bool_t
-init_cpu(
+BOOT_CODE bool_t init_cpu(
     bool_t   mask_legacy_irqs
 )
 {
@@ -544,7 +530,7 @@ init_cpu(
         }
     }
     if (cpuid_007h_ebx_get_smep(ebx_007)) {
-        /* similar to smap we cannot enable smep if using dangerous code injenction. it
+        /* similar to smap we cannot enable smep if using dangerous code injection. it
          * does not affect stack trace printing though */
         if (!config_set(CONFIG_DANGEROUS_CODE_INJECTION)) {
             write_cr4(read_cr4() | CR4_SMEP);

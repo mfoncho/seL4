@@ -18,6 +18,10 @@
 #include <api/failures.h>
 #include <linker.h>
 
+#define HCR_RW       BIT(31)     /* Execution state control        */
+#define HCR_TRVM     BIT(30)     /* trap reads of VM controls      */
+#define HCR_HCD      BIT(29)     /* Disable HVC                    */
+#define HCR_TDZ      BIT(28)     /* trap DC ZVA AArch64 only       */
 #define HCR_TGE      BIT(27)     /* Trap general exceptions        */
 #define HCR_TVM      BIT(26)     /* Trap MMU access                */
 #define HCR_TTLB     BIT(25)     /* Trap TLB operations            */
@@ -50,11 +54,6 @@
 
 #define GIC_VCPU_MAX_NUM_LR 64
 
-struct cpXRegs {
-    uint32_t sctlr;
-    uint32_t actlr;
-};
-
 struct gicVCpuIface {
     uint32_t hcr;
     uint32_t vmcr;
@@ -65,18 +64,8 @@ struct gicVCpuIface {
 struct vcpu {
     /* TCB associated with this VCPU. */
     struct tcb *vcpuTCB;
-    struct cpXRegs cpx;
     struct gicVCpuIface vgic;
-#ifdef CONFIG_ARCH_AARCH64
     word_t regs[seL4_VCPUReg_Num];
-#else
-    /* Banked registers */
-    word_t lr_svc, sp_svc;
-    word_t lr_abt, sp_abt;
-    word_t lr_und, sp_und;
-    word_t lr_irq, sp_irq;
-    word_t lr_fiq, sp_fiq, r8_fiq, r9_fiq, r10_fiq, r11_fiq, r12_fiq;
-#endif
 };
 typedef struct vcpu vcpu_t;
 compile_assert(vcpu_size_correct, sizeof(struct vcpu) <= BIT(VCPU_SIZE_BITS))
@@ -100,19 +89,19 @@ exception_t decodeARMVCPUInvocation(
     word_t label,
     unsigned int length,
     cptr_t cptr,
-    cte_t* slot,
+    cte_t *slot,
     cap_t cap,
     extra_caps_t extraCaps,
     bool_t call,
-    word_t* buffer
+    word_t *buffer
 );
 
 void vcpu_restore(vcpu_t *cpu);
 void vcpu_switch(vcpu_t *cpu);
 
-exception_t decodeVCPUWriteReg(cap_t cap, unsigned int length, word_t* buffer);
-exception_t decodeVCPUReadReg(cap_t cap, unsigned int length, bool_t call, word_t* buffer);
-exception_t decodeVCPUInjectIRQ(cap_t cap, unsigned int length, word_t* buffer);
+exception_t decodeVCPUWriteReg(cap_t cap, unsigned int length, word_t *buffer);
+exception_t decodeVCPUReadReg(cap_t cap, unsigned int length, bool_t call, word_t *buffer);
+exception_t decodeVCPUInjectIRQ(cap_t cap, unsigned int length, word_t *buffer);
 exception_t decodeVCPUSetTCB(cap_t cap, extra_caps_t extraCaps);
 
 exception_t invokeVCPUWriteReg(vcpu_t *vcpu, word_t field, word_t value);

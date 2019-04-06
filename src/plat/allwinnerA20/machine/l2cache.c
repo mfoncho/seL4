@@ -10,22 +10,19 @@
 
 #include <arch/machine.h>
 
-static inline word_t
-readACR(void)
+static inline word_t readACR(void)
 {
     word_t ACR;
-    asm volatile ("mrc p15,0,%0,c1,c0,1" : "=r"(ACR));
+    asm volatile("mrc p15,0,%0,c1,c0,1" : "=r"(ACR));
     return ACR;
 }
 
-static inline void
-writeACR(word_t ACR)
+static inline void writeACR(word_t ACR)
 {
-    asm volatile ("mcr p15,0,%0,c1,c0,1" : : "r"(ACR));
+    asm volatile("mcr p15,0,%0,c1,c0,1" : : "r"(ACR));
 }
 
-void
-initL2Cache(void)
+void initL2Cache(void)
 {
     cleanInvalidateL1Caches();
 
@@ -40,3 +37,8 @@ initL2Cache(void)
 
     cleanInvalidateL1Caches();
 }
+
+void plat_cleanL2Range(paddr_t start, paddr_t end) {}
+void plat_invalidateL2Range(paddr_t start, paddr_t end) {}
+void plat_cleanInvalidateL2Range(paddr_t start, paddr_t end) {}
+void plat_cleanInvalidateL2Cache(void) {}

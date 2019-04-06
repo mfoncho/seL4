@@ -28,11 +28,12 @@ void initL2Cache(void);
 
 void initIRQController(void);
 void cpu_initLocalIRQController(void);
+void setIRQTrigger(irq_t irq, bool_t trigger);
 
 static inline void plat_cleanL2Range(paddr_t start, paddr_t end);
 static inline void plat_invalidateL2Range(paddr_t start, paddr_t end);
 static inline void plat_cleanInvalidateL2Range(paddr_t start, paddr_t end);
-static inline void plat_cleanInvalidateCache(void);
+static inline void plat_cleanInvalidateL2Cache(void);
 
 void cleanInvalidateCacheRange_RAM(word_t start, word_t end, paddr_t pstart);
 void cleanCacheRange_RAM(word_t start, word_t end, paddr_t pstart);
@@ -47,14 +48,14 @@ void cleanCaches_PoU(void);
 void cleanInvalidateL1Caches(void);
 
 /* Cleaning memory before user-level access */
-static inline void clearMemory(word_t* ptr, word_t bits)
+static inline void clearMemory(word_t *ptr, word_t bits)
 {
     memzero(ptr, BIT(bits));
     cleanCacheRange_PoU((word_t)ptr, (word_t)ptr + BIT(bits) - 1,
                         addrFromPPtr(ptr));
 }
 
-static inline void clearMemoryRAM(word_t* ptr, word_t bits)
+static inline void clearMemoryRAM(word_t *ptr, word_t bits)
 {
     memzero(ptr, BIT(bits));
     cleanCacheRange_RAM((word_t)ptr, (word_t)ptr + BIT(bits) - 1,

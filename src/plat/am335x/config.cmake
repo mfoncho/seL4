@@ -16,12 +16,11 @@ if(KernelPlatformAM335X)
     set(KernelArmCortexA8 ON)
     set(KernelArchArmV7a ON)
     config_set(KernelPlatform PLAT "am335x")
+    list(APPEND KernelDTSList "tools/dts/am335x.dts")
+    list(APPEND KernelDTSList "src/plat/am335x/overlay-am335x.dts")
 endif()
 
 add_sources(
     DEP "KernelPlatformAM335X"
-    CFILES
-        src/plat/am335x/machine/hardware.c
-        src/plat/am335x/machine/io.c
-        src/plat/am335x/machine/l2cache.c
+    CFILES src/plat/am335x/machine/hardware.c src/plat/am335x/machine/l2cache.c
 )

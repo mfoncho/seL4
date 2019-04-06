@@ -14,12 +14,11 @@
 #include <config.h>
 #ifdef CONFIG_ENABLE_BENCHMARKS
 
-static inline uint64_t
-timestamp(void)
+static inline uint64_t timestamp(void)
 {
     uint32_t low, high;
 
-    asm volatile (
+    asm volatile(
         "movl $0, %%eax \n"
         "movl $0, %%ecx \n"
         "cpuid          \n"
@@ -29,7 +28,7 @@ timestamp(void)
         "movl $0, %%eax \n"
         "movl $0, %%ecx \n"
         "cpuid          \n"
-        : "=r" (high), "=r" (low)
+        : "=r"(high), "=r"(low)
         : /* no inputs */
         : "eax", "ebx", "ecx", "edx"
     );

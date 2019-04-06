@@ -49,8 +49,8 @@
  *      any data (e.g. seL4_Yield)
  */
 
-static inline void
-arm_sys_send(seL4_Word sys, seL4_Word dest, seL4_Word info_arg, seL4_Word mr0, seL4_Word mr1, seL4_Word mr2, seL4_Word mr3)
+static inline void arm_sys_send(seL4_Word sys, seL4_Word dest, seL4_Word info_arg, seL4_Word mr0, seL4_Word mr1,
+                                seL4_Word mr2, seL4_Word mr3)
 {
     register seL4_Word destptr asm("r0") = dest;
     register seL4_Word info asm("r1") = info_arg;
@@ -63,16 +63,16 @@ arm_sys_send(seL4_Word sys, seL4_Word dest, seL4_Word info_arg, seL4_Word mr0, s
 
     /* Perform the system call. */
     register seL4_Word scno asm("r7") = sys;
-    asm volatile (
+    asm volatile(
         "swi $0"
-        : "+r" (destptr), "+r" (msg0), "+r" (msg1), "+r" (msg2),
-        "+r" (msg3), "+r" (info)
+        : "+r"(destptr), "+r"(msg0), "+r"(msg1), "+r"(msg2),
+        "+r"(msg3), "+r"(info)
         : "r"(scno)
     );
 }
 
-static inline void
-arm_sys_reply(seL4_Word sys, seL4_Word info_arg, seL4_Word mr0, seL4_Word mr1, seL4_Word mr2, seL4_Word mr3)
+static inline void arm_sys_reply(seL4_Word sys, seL4_Word info_arg, seL4_Word mr0, seL4_Word mr1, seL4_Word mr2,
+                                 seL4_Word mr3)
 {
     register seL4_Word info asm("r1") = info_arg;
 
@@ -84,31 +84,30 @@ arm_sys_reply(seL4_Word sys, seL4_Word info_arg, seL4_Word mr0, seL4_Word mr1, s
 
     /* Perform the system call. */
     register seL4_Word scno asm("r7") = sys;
-    asm volatile (
+    asm volatile(
         "swi $0"
-        : "+r" (msg0), "+r" (msg1), "+r" (msg2), "+r" (msg3),
-        "+r" (info)
+        : "+r"(msg0), "+r"(msg1), "+r"(msg2), "+r"(msg3),
+        "+r"(info)
         : "r"(scno)
     );
 }
 
-static inline void
-arm_sys_send_null(seL4_Word sys, seL4_Word src, seL4_Word info_arg)
+static inline void arm_sys_send_null(seL4_Word sys, seL4_Word src, seL4_Word info_arg)
 {
     register seL4_Word destptr asm("r0") = src;
     register seL4_Word info asm("r1") = info_arg;
 
     /* Perform the system call. */
     register seL4_Word scno asm("r7") = sys;
-    asm volatile (
+    asm volatile(
         "swi $0"
-        : "+r" (destptr), "+r" (info)
+        : "+r"(destptr), "+r"(info)
         : "r"(scno)
     );
 }
 
-static inline void
-arm_sys_recv(seL4_Word sys, seL4_Word src, seL4_Word *out_badge, seL4_Word *out_info, seL4_Word *out_mr0, seL4_Word *out_mr1, seL4_Word *out_mr2, seL4_Word *out_mr3)
+static inline void arm_sys_recv(seL4_Word sys, seL4_Word src, seL4_Word *out_badge, seL4_Word *out_info,
+                                seL4_Word *out_mr0, seL4_Word *out_mr1, seL4_Word *out_mr2, seL4_Word *out_mr3)
 {
     register seL4_Word src_and_badge asm("r0") = src;
     register seL4_Word info asm("r1");
@@ -121,10 +120,10 @@ arm_sys_recv(seL4_Word sys, seL4_Word src, seL4_Word *out_badge, seL4_Word *out_
 
     /* Perform the system call. */
     register seL4_Word scno asm("r7") = sys;
-    asm volatile (
+    asm volatile(
         "swi $0"
-        : "=r" (msg0), "=r" (msg1), "=r" (msg2), "=r" (msg3),
-        "=r" (info), "+r" (src_and_badge)
+        : "=r"(msg0), "=r"(msg1), "=r"(msg2), "=r"(msg3),
+        "=r"(info), "+r"(src_and_badge)
         : "r"(scno)
         : "memory"
     );
@@ -136,8 +135,8 @@ arm_sys_recv(seL4_Word sys, seL4_Word src, seL4_Word *out_badge, seL4_Word *out_
     *out_mr3 = msg3;
 }
 
-static inline void
-arm_sys_send_recv(seL4_Word sys, seL4_Word dest, seL4_Word *out_badge, seL4_Word info_arg, seL4_Word *out_info, seL4_Word *in_out_mr0, seL4_Word *in_out_mr1, seL4_Word *in_out_mr2, seL4_Word *in_out_mr3)
+static inline void arm_sys_send_recv(seL4_Word sys, seL4_Word dest, seL4_Word *out_badge, seL4_Word info_arg,
+                                     seL4_Word *out_info, seL4_Word *in_out_mr0, seL4_Word *in_out_mr1, seL4_Word *in_out_mr2, seL4_Word *in_out_mr3)
 {
     register seL4_Word destptr asm("r0") = dest;
     register seL4_Word info asm("r1") = info_arg;
@@ -150,10 +149,10 @@ arm_sys_send_recv(seL4_Word sys, seL4_Word dest, seL4_Word *out_badge, seL4_Word
 
     /* Perform the system call. */
     register seL4_Word scno asm("r7") = sys;
-    asm volatile (
+    asm volatile(
         "swi $0"
-        : "+r" (msg0), "+r" (msg1), "+r" (msg2), "+r" (msg3),
-        "+r" (info), "+r" (destptr)
+        : "+r"(msg0), "+r"(msg1), "+r"(msg2), "+r"(msg3),
+        "+r"(info), "+r"(destptr)
         : "r"(scno)
         : "memory"
     );
@@ -165,11 +164,10 @@ arm_sys_send_recv(seL4_Word sys, seL4_Word dest, seL4_Word *out_badge, seL4_Word
     *in_out_mr3 = msg3;
 }
 
-static inline void
-arm_sys_null(seL4_Word sys)
+static inline void arm_sys_null(seL4_Word sys)
 {
     register seL4_Word scno asm("r7") = sys;
-    asm volatile (
+    asm volatile(
         "swi $0"
         : /* no outputs */
         : "r"(scno)

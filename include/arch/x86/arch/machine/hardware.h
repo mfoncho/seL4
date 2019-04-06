@@ -15,7 +15,7 @@
 #include <config.h>
 #include <arch/types.h>
 #include <linker.h>
-#include <mode/api/constants.h>
+#include <sel4/sel4_arch/constants.h>
 
 #define PAGE_BITS seL4_PageBits
 #define LARGE_PAGE_BITS seL4_LargePageBits
@@ -36,7 +36,7 @@ enum vm_page_size {
 };
 typedef word_t vm_page_size_t;
 
-enum framSizeConstants {
+enum frameSizeConstants {
     X64SmallPageBits = seL4_PageBits,
     X64LargePageBits = seL4_LargePageBits,
     X64HugePageBits  = seL4_HugePageBits
@@ -56,8 +56,7 @@ typedef word_t vm_page_map_type_t;
 
 /* Any changes to this function need to be replicated in pageBitsForSize_phys.
  */
-static inline word_t CONST
-pageBitsForSize(vm_page_size_t pagesize)
+static inline word_t CONST pageBitsForSize(vm_page_size_t pagesize)
 {
     switch (pagesize) {
     case X86_SmallPage:
@@ -79,8 +78,7 @@ pageBitsForSize(vm_page_size_t pagesize)
  * be replicated in pageBitsForSize.
  */
 PHYS_CODE
-static inline word_t CONST
-pageBitsForSize_phys(vm_page_size_t pagesize)
+static inline word_t CONST pageBitsForSize_phys(vm_page_size_t pagesize)
 {
     switch (pagesize) {
     case X86_SmallPage:
@@ -102,12 +100,12 @@ uint32_t CONST getCacheLineSize(void);
 uint32_t CONST getCacheLineSizeBits(void);
 
 /* Flushes a specific memory range from the CPU cache */
-static inline void flushCacheLine(volatile void* vaddr)
+static inline void flushCacheLine(volatile void *vaddr)
 {
-    asm volatile ("clflush %[vaddr]" : [vaddr] "+m"(*((volatile char *)vaddr)));
+    asm volatile("clflush %[vaddr]" : [vaddr] "+m"(*((volatile char *)vaddr)));
 }
 
-void flushCacheRange(void* vaddr, uint32_t size_bits);
+void flushCacheRange(void *vaddr, uint32_t size_bits);
 
 /* Disables a variety of prefetchers */
 bool_t disablePrefetchers(void);
@@ -121,8 +119,7 @@ static inline void x86_wbinvd(void)
     asm volatile("wbinvd" ::: "memory");
 }
 
-static inline void
-arch_clean_invalidate_caches(void)
+static inline void arch_clean_invalidate_caches(void)
 {
     x86_wbinvd();
 }

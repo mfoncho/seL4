@@ -199,6 +199,19 @@ A capability could not be looked up.
 \end{tabularx}
 \vfill
 
+\subsection{Truncated Message}
+
+Too few message words or capabilities were sent in the message.
+
+\begin{tabularx}{\textwidth}{p{0.25\textwidth}X}
+\toprule
+    Field & Meaning \\
+\midrule
+    \ipcbloc{Label} & \enummem{seL4\_TruncatedMessage} \\
+\bottomrule
+\end{tabularx}
+\vfill
+
 \subsection{Delete First}
 
 A destination slot specified in the syscall arguments is occupied.
@@ -269,16 +282,14 @@ complete the \apifunc{seL4\_Untyped\_Retype}{untyped_retype} request.
 \clearpage
 
 \section{x86-Specific Object Methods}
-
-\subsection{General x86 Object Methods}
 \inputgeneratedapidoc{ObjectApiX86}
 \clearpage
 
-\subsection{IA32-Specific Object Methods}
+\section{IA32-Specific Object Methods}
 \inputgeneratedapidoc{ObjectApiIa32}
 \clearpage
 
-\subsection{x86\_64-Specific Object Methods}
+\section{x86\_64-Specific Object Methods}
 \inputgeneratedapidoc{ObjectApiX64}
 
 \fi % xeightsix
@@ -287,14 +298,17 @@ complete the \apifunc{seL4\_Untyped\_Retype}{untyped_retype} request.
 
 \section{ARM-Specific Object Methods}
 
-\subsection{General ARM Object Methods}
 \inputgeneratedapidoc{ObjectApiArm}
 \clearpage
 
-\subsection{Aarch32-Specific Object Methods}
+\section{Aarch32-Specific Object Methods}
 \inputgeneratedapidoc{ObjectApiAarch32}
 \clearpage
 
-\subsection{Aarch64-Specific Object Methods}
+\section{Aarch64-Specific Object Methods}
 \inputgeneratedapidoc{ObjectApiAarch64}
 \clearpage
+
+\section{RISCV-Specific Object Methods}
+\subsection{General RISCV Object Methods}
+\inputgeneratedapidoc{ObjectApiRISCV}

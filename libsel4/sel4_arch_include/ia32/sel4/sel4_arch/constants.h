@@ -41,6 +41,7 @@
 #define seL4_PageDirIndexBits 10
 
 #define seL4_IOPageTableBits 12
+#define seL4_NumASIDPoolsBits 2
 #define seL4_ASIDPoolBits    12
 #define seL4_ASIDPoolIndexBits 10
 #define seL4_WordSizeBits 2
@@ -112,5 +113,8 @@ enum {
 
 /* IPC buffer is 512 bytes, giving size bits of 9 */
 #define seL4_IPCBufferSizeBits 9
+
+/* First address in the virtual address space that is not accessible to user level */
+#define seL4_UserTop 0xe0000000
 
 #endif

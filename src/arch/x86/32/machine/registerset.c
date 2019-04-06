@@ -9,7 +9,7 @@
  */
 
 #include <config.h>
-#include <arch/api/constants.h>
+#include <sel4/arch/constants.h>
 #include <arch/machine/registerset.h>
 #include <machine/fpu.h>
 #include <arch/object/structures.h>
@@ -27,7 +27,7 @@ const register_t gpRegisters[] = {
     TLS_BASE, FS, GS
 };
 
-void Mode_initContext(user_context_t* context)
+void Mode_initContext(user_context_t *context)
 {
     context->registers[EAX] = 0;
     context->registers[EBX] = 0;

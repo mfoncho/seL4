@@ -18,7 +18,11 @@ include(CMakeDependentOption)
 # Is equivalent to find_file except that it adds CMAKE_CURRENT_SOURCE_DIR as a path and sets
 # CMAKE_FIND_ROOT_PATH_BOTH
 function(RequireFile config_name file_name)
-    find_file(${config_name} "${file_name}" PATHS "${CMAKE_CURRENT_SOURCE_DIR}" CMAKE_FIND_ROOT_PATH_BOTH ${ARGV})
+    find_file(
+        ${config_name} "${file_name}"
+        PATHS "${CMAKE_CURRENT_SOURCE_DIR}"
+        CMAKE_FIND_ROOT_PATH_BOTH ${ARGV}
+    )
     if("${${config_name}}" STREQUAL "${config_name}-NOTFOUND")
         message(FATAL_ERROR "Failed to find required file ${file_name}")
     endif()
@@ -38,6 +42,14 @@ function(get_absolute_source_or_binary output input)
     set("${output}" "${test}" PARENT_SCOPE)
 endfunction(get_absolute_source_or_binary)
 
+function(get_absolute_list_source_or_binary output input)
+    get_filename_component(test "${input}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+    if(NOT EXISTS "${test}")
+        get_absolute_source_or_binary(test ${input})
+    endif()
+    set("${output}" "${test}" PARENT_SCOPE)
+endfunction()
+
 # Generates a custom command that preprocesses an input file into an output file
 # Uses the current compilation settings as well as any EXTRA_FLAGS provided. Can also
 # be given any EXTRA_DEPS to depend upon
@@ -47,46 +59,43 @@ endfunction(get_absolute_source_or_binary)
 #  * Output is assumed to be in CMAKE_CURRENT_BINARY_DIR
 #  * Input is assumed to be in CMAKE_CURRENT_SOURCE_DIR if it resolves to a file that exists
 #    otherwise it is assumed to be in CMAKE_CURRENT_BINARY_DIR
-function(CPPFile output output_target input)
-    cmake_parse_arguments(PARSE_ARGV 3 "CPP" "EXACT_INPUT" "" "EXTRA_DEPS;EXTRA_FLAGS")
+function(cppfile output output_target input)
+    cmake_parse_arguments(PARSE_ARGV 3 "CPP" "" "EXACT_NAME" "EXTRA_DEPS;EXTRA_FLAGS")
     if(NOT "${CPP_UNPARSED_ARGUMENTS}" STREQUAL "")
-        message(FATAL_ERROR "Unknown arguments to CPPFile: ${CPP_UNPARSED_ARGUMENTS}")
+        message(FATAL_ERROR "Unknown arguments to cppfile: ${CPP_UNPARSED_ARGUMENTS}")
     endif()
     get_absolute_source_or_binary(input "${input}")
-    # If EXACT_INPUT then we must use the exact input file for the compilation and
-    # trust that the user gave something that the compiler will understand. Otherwise
-    # generate a rule for copying the input into a .c file. This prevents the
-    # compiler for getting confused if you are trying to preprocess a file type
-    # that it would normally understand as something else (such as a linker script)
-    if (NOT CPP_EXACT_INPUT)
-        add_custom_command(OUTPUT ${output_target}_temp.c
-            COMMAND ${CMAKE_COMMAND} -E copy ${input} ${CMAKE_CURRENT_BINARY_DIR}/${output_target}_temp.c
-            COMMENT "Creating C input file for preprocessor"
-            DEPENDS ${CPP_EXTRA_DEPS}
-        )
-        set(input ${output_target}_temp.c)
-        add_custom_target(${output_target}_copy_in DEPENDS ${input})
-    else()
-        # Still need to generate a custom target even if not copying as EXRTRA_DEPS may
-        # have target and file level dependencies, which we cannot add directly as
-        # dependencies to the library
-        add_custom_target(${output_target}_copy_in DEPENDS ${CPP_EXTRA_DEPS})
+    set(file_copy_name "${output_target}_temp.c")
+    # If EXACT_NAME then we copy the input file to the name given by the caller. Otherwise
+    # generate a rule for copying the input file to a default name.
+    if(CPP_EXACT_NAME)
+        set(file_copy_name ${CPP_EXACT_NAME})
     endif()
+    add_custom_command(
+        OUTPUT ${file_copy_name}
+        COMMAND
+            ${CMAKE_COMMAND} -E copy ${input} ${CMAKE_CURRENT_BINARY_DIR}/${file_copy_name}
+        COMMENT "Creating C input file for preprocessor"
+        DEPENDS ${CPP_EXTRA_DEPS} ${input}
+    )
+    add_custom_target(${output_target}_copy_in DEPENDS ${file_copy_name})
     # Now generate an object library to persuade cmake to just do compilation and not try
     # and link our 'object' files
-    add_library(${output_target}_temp_lib OBJECT ${input})
+    add_library(${output_target}_temp_lib OBJECT ${file_copy_name})
     add_dependencies(${output_target}_temp_lib ${output_target}_copy_in)
     # Give the preprecess flag
     target_compile_options(${output_target}_temp_lib PRIVATE -E)
     # Give any other flags from the user
     target_compile_options(${output_target}_temp_lib PRIVATE ${CPP_EXTRA_FLAGS})
     # Now copy from the random name cmake gave our object file into the one desired by the user
-    add_custom_command(OUTPUT ${output}
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_OBJECTS:${output_target}_temp_lib> ${output}
+    add_custom_command(
+        OUTPUT ${output}
+        COMMAND
+            ${CMAKE_COMMAND} -E copy $<TARGET_OBJECTS:${output_target}_temp_lib> ${output}
         DEPENDS ${output_target}_temp_lib $<TARGET_OBJECTS:${output_target}_temp_lib>
     )
     add_custom_target(${output_target} DEPENDS ${output})
-endfunction(CPPFile)
+endfunction(cppfile)
 
 # Function to generate a custom command to process a bitfield file. The input
 # (pbf_path) is either a .bf file or, if you used pre-processor directives, a
@@ -99,13 +108,24 @@ endfunction(CPPFile)
 # the bitfield generator
 function(GenBFCommand args target_name pbf_path pbf_target deps)
     # Since we're going to change the working directory first convert any paths to absolute
-    get_filename_component(target_name_absolute "${target_name}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    get_filename_component(
+        target_name_absolute
+        "${target_name}"
+        ABSOLUTE
+        BASE_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}"
+    )
     get_absolute_source_or_binary(pbf_path_absolute "${pbf_path}")
-    add_custom_command(OUTPUT "${target_name_absolute}"
-        COMMAND "${PYTHON}" "${BF_GEN_PATH}" "${args}" "${pbf_path_absolute}" "${target_name_absolute}"
-        DEPENDS "${BF_GEN_PATH}" "${pbf_path_absolute}" "${pbf_target}" ${deps}
-        COMMENT "Generating from ${pbf_path}"
-        COMMAND_EXPAND_LISTS
+    add_custom_command(
+        OUTPUT "${target_name_absolute}"
+        COMMAND
+            "${PYTHON}" "${BF_GEN_PATH}" "${args}" "${pbf_path_absolute}" "${target_name_absolute}"
+        DEPENDS
+            "${BF_GEN_PATH}"
+            "${pbf_path_absolute}"
+            "${pbf_target}"
+            ${deps}
+        COMMENT "Generating from ${pbf_path}" COMMAND_EXPAND_LISTS
         VERBATIM
     )
 endfunction(GenBFCommand)
@@ -113,9 +133,7 @@ endfunction(GenBFCommand)
 # Wrapper function for generating both a target and command to process a bitfield file
 function(GenBFTarget args target_name target_file pbf_path pbf_target deps)
     GenBFCommand("${args}" "${target_file}" "${pbf_path}" "${pbf_target}" "${deps}")
-    add_custom_target(${target_name}
-        DEPENDS "${target_file}"
-    )
+    add_custom_target(${target_name} DEPENDS "${target_file}")
 endfunction(GenBFTarget)
 
 # Wrapper around GenBFTarget for generating a C header file out of a bitfield specification
@@ -152,20 +170,46 @@ endfunction(GenThyBFTarget)
 function(GenDefsBFTarget target_name target_file pbf_path pbf_target prunes deps)
     set(args "")
     list(APPEND args --hol_defs)
-    GenThyBFTarget("${args}" "${target_name}" "${target_file}" "${pbf_path}" "${pbf_target}" "${prunes}" "${deps}")
+    GenThyBFTarget(
+        "${args}"
+        "${target_name}"
+        "${target_file}"
+        "${pbf_path}"
+        "${pbf_target}"
+        "${prunes}"
+        "${deps}"
+    )
 endfunction(GenDefsBFTarget)
 
 # Generate proofs from a bitfield specification
 function(GenProofsBFTarget target_name target_file pbf_path pbf_target prunes deps)
     set(args "")
     # Get an absolute path to cspec_dir so that the final theory file is portable
-    list(APPEND args --hol_proofs --umm_types "${UMM_TYPES}")
+    list(
+        APPEND
+            args
+            --hol_proofs
+            --umm_types
+            "${UMM_TYPES}"
+    )
     if(SORRY_BITFIELD_PROOFS)
         list(APPEND args "--sorry_lemmas")
     endif()
-    list(APPEND args "--toplevel;$<JOIN:$<TARGET_PROPERTY:kernel_config_target,TOPLEVELTYPES>,;--toplevel;>")
+    list(
+        APPEND
+            args
+            "--toplevel;$<JOIN:$<TARGET_PROPERTY:kernel_config_target,TOPLEVELTYPES>,;--toplevel;>"
+    )
     list(APPEND deps "${UMM_TYPES}")
-    GenThyBFTarget("${args}" "${target_name}" "${target_file}" "${pbf_path}" "${pbf_target}" "${prunes}" "${deps}")
+    GenThyBFTarget(
+        "${args}"
+        "${target_name}"
+        "${target_file}"
+        "${pbf_path}"
+        "${pbf_target}"
+        "${prunes}"
+        "${deps}"
+    )
 endfunction(GenProofsBFTarget)
 
 # config_option(cmake_option_name c_config_name doc DEFAULT default [DEPENDS deps] [DEFAULT_DISABLE default_disabled])
@@ -194,7 +238,14 @@ function(config_option optionname configname doc)
         # Check the passed in dependencies. This loop and logic is inspired by the
         # actual cmake_dependent_option code
         foreach(test ${CONFIG_DEPENDS})
-            string(REGEX REPLACE " +" ";" test "${test}")
+            string(
+                REGEX
+                REPLACE
+                    " +"
+                    ";"
+                    test
+                    "${test}"
+            )
             if(NOT (${test}))
                 set(valid OFF)
                 break()
@@ -216,9 +267,7 @@ function(config_option optionname configname doc)
     endif()
     set(local_config_string "${configure_string}")
     if(${optionname})
-        list(APPEND local_config_string
-            "#define CONFIG_${configname} 1"
-        )
+        list(APPEND local_config_string "#define CONFIG_${configname} 1")
     endif()
     set(configure_string "${local_config_string}" PARENT_SCOPE)
 endfunction(config_option)
@@ -230,14 +279,11 @@ endfunction(config_option)
 macro(config_set optionname configname value)
     set(${optionname} "${value}" CACHE INTERNAL "")
     if("${value}" STREQUAL "ON")
-        list(APPEND configure_string
-            "#define CONFIG_${configname} 1"
-        )
+        list(APPEND configure_string "#define CONFIG_${configname} 1")
     elseif("${value}" STREQUAL "OFF")
+
     else()
-        list(APPEND configure_string
-            "#define CONFIG_${configname} ${value}"
-        )
+        list(APPEND configure_string "#define CONFIG_${configname} ${value}")
     endif()
 endmacro(config_set)
 
@@ -251,7 +297,14 @@ endmacro(config_set)
 #  the configuration dependencies are unmet
 # Adds to the global configure_string variable (see add_config_library)
 function(config_string optionname configname doc)
-    cmake_parse_arguments(PARSE_ARGV 3 "CONFIG" "UNQUOTE;UNDEF_DISABLED" "DEPENDS;DEFAULT_DISABLED;DEFAULT" "")
+    cmake_parse_arguments(
+        PARSE_ARGV
+        3
+        "CONFIG"
+        "UNQUOTE;UNDEF_DISABLED"
+        "DEPENDS;DEFAULT_DISABLED;DEFAULT"
+        ""
+    )
     if(NOT "${CONFIG_UNPARSED_ARGUMENTS}" STREQUAL "")
         message(FATAL_ERROR "Unknown arguments to config_option: ${CONFIG_UNPARSED_ARGUMENTS}")
     endif()
@@ -267,7 +320,14 @@ function(config_string optionname configname doc)
         # Check the passed in dependencies. This loop and logic is inspired by the
         # actual cmake_dependent_option code
         foreach(test ${CONFIG_DEPENDS})
-            string(REGEX REPLACE " +" ";" test "${test}")
+            string(
+                REGEX
+                REPLACE
+                    " +"
+                    ";"
+                    test
+                    "${test}"
+            )
             if(NOT (${test}))
                 set(valid OFF)
                 break()
@@ -291,8 +351,9 @@ function(config_string optionname configname doc)
             unset(${optionname}_UNAVAILABLE CACHE)
         endif()
         set(${optionname} "${CONFIG_DEFAULT}" CACHE STRING "${doc}" ${force})
-        list(APPEND local_config_string
-            "#define CONFIG_${configname} ${quote}@${optionname}@${quote}"
+        list(
+            APPEND
+                local_config_string "#define CONFIG_${configname} ${quote}@${optionname}@${quote}"
         )
     else()
         if(CONFIG_UNDEF_DISABLED)
@@ -300,8 +361,10 @@ function(config_string optionname configname doc)
         else()
             # Forcively change the value to its disabled_value
             set(${optionname} "${CONFIG_DEFAULT_DISABLED}" CACHE INTERNAL "")
-            list(APPEND local_config_string
-                "#define CONFIG_${configname} ${quote}@${optionname}@${quote}"
+            list(
+                APPEND
+                    local_config_string
+                    "#define CONFIG_${configname} ${quote}@${optionname}@${quote}"
             )
         endif()
         # Sset _UNAVAILABLE so we can detect when the option because enabled again
@@ -352,14 +415,27 @@ function(config_choice optionname configname doc)
         list(GET option 0 option_value)
         list(GET option 1 option_cache)
         list(GET option 2 option_config)
-        list(REMOVE_AT option 0 1 2)
+        list(
+            REMOVE_AT
+                option
+                0
+                1
+                2
+        )
         # Construct a list of all of our options
         list(APPEND all_strings "${option_value}")
         # By default we assume is valid, we may change our mind after checking dependencies
         # (if there are any). This loop is again based off the one in cmake_dependent_option
         set(valid ON)
         foreach(truth IN LISTS option)
-            string(REGEX REPLACE " +" ";" truth "${truth}")
+            string(
+                REGEX
+                REPLACE
+                    " +"
+                    ";"
+                    truth
+                    "${truth}"
+            )
             if(NOT (${truth}))
                 # This choice isn't valid due to unmet conditions so we must check if we have
                 # currently selected this choice. If so trigger the force_default
@@ -384,9 +460,7 @@ function(config_choice optionname configname doc)
             # Check if this option is the one that is currently set
             if("${${optionname}}" STREQUAL "${option_value}")
                 set(${option_cache} ON CACHE INTERNAL "")
-                list(APPEND local_config_string
-                    "#define CONFIG_${option_config} 1"
-                )
+                list(APPEND local_config_string "#define CONFIG_${option_config} 1")
                 set(found_current ON)
             else()
                 set(${option_cache} OFF CACHE INTERNAL "")
@@ -404,9 +478,7 @@ function(config_choice optionname configname doc)
         # None of the choices were valid. Remove this option so its not visible
         unset(${optionname} CACHE)
     else()
-        list(APPEND local_config_string
-            "#define CONFIG_${configname} @${optionname}@"
-        )
+        list(APPEND local_config_string "#define CONFIG_${configname} @${optionname}@")
         set(configure_string "${local_config_string}" PARENT_SCOPE)
         set(${optionname} "${default}" CACHE STRING "${doc}" ${force_default})
         set_property(CACHE ${optionname} PROPERTY STRINGS ${strings})
@@ -415,9 +487,7 @@ function(config_choice optionname configname doc)
             # choice earlier, since we didn't know we were going to revert to
             # the default. So add the option setting here
             set(${first_cache} ON CACHE INTERNAL "")
-            list(APPEND local_config_string
-                "#define CONFIG_${first_config} 1"
-            )
+            list(APPEND local_config_string "#define CONFIG_${first_config} 1")
         endif()
     endif()
     # Save all possible options to an internal value.  This is to allow enumerating the options elsewhere.
@@ -441,7 +511,13 @@ function(add_config_library prefix configure_template)
     set(config_file "${config_dir}/${prefix}/gen_config.h")
     string(CONFIGURE "${configure_template}" config_header_contents)
     # Turn the list of configurations into a valid C file of different lines
-    string(REPLACE ";" "\n" config_header_contents "${config_header_contents}")
+    string(
+        REPLACE
+            ";"
+            "\n"
+            config_header_contents
+            "${config_header_contents}"
+    )
     file(GENERATE OUTPUT "${config_file}" CONTENT "${config_header_contents}")
     add_custom_target(${prefix}_Gen DEPENDS "${config_file}")
     add_library(${prefix}_Config INTERFACE)
@@ -467,10 +543,7 @@ endmacro(get_generated_files)
 function(generate_autoconf targetname config_list)
     set(link_list "")
     set(gen_list "")
-    set(include_list
-        "#ifndef AUTOCONF_${targetname}_H"
-        "#define AUTOCONF_${targetname}_H"
-    )
+    set(include_list "#ifndef AUTOCONF_${targetname}_H" "#define AUTOCONF_${targetname}_H")
     foreach(config IN LISTS config_list)
         list(APPEND link_list "${config}_Config")
         get_generated_files(gens ${config}_Gen)
@@ -481,7 +554,13 @@ function(generate_autoconf targetname config_list)
     set(config_dir "${CMAKE_CURRENT_BINARY_DIR}/autoconf")
     set(config_file "${config_dir}/autoconf.h")
 
-    string(REPLACE ";" "\n" config_header_contents "#define AUTOCONF_INCLUDED;${include_list}")
+    string(
+        REPLACE
+            ";"
+            "\n"
+            config_header_contents
+            "#define AUTOCONF_INCLUDED;${include_list}"
+    )
     file(GENERATE OUTPUT "${config_file}" CONTENT "${config_header_contents}")
     add_custom_target(${targetname}_Gen DEPENDS "${config_file}")
     add_library(${targetname} INTERFACE)
@@ -490,7 +569,11 @@ function(generate_autoconf targetname config_list)
     add_dependencies(${targetname} ${targetname}_Gen ${config_file})
     # Set our GENERATED_FILES property to include the GENERATED_FILES of all of our input
     # configurations, as well as the files we generated
-    set_property(TARGET ${targetname}_Gen APPEND PROPERTY GENERATED_FILES "${config_file}" ${gen_list})
+    set_property(
+        TARGET ${targetname}_Gen
+        APPEND
+        PROPERTY GENERATED_FILES "${config_file}" ${gen_list}
+    )
 endfunction(generate_autoconf)
 
 # Macro that allows for appending to a specified list only if all the supplied conditions are true
@@ -498,7 +581,14 @@ macro(list_append_if list dep)
     set(list_append_local_list ${${list}})
     set(list_append_valid ON)
     foreach(truth IN ITEMS ${dep})
-        string(REGEX REPLACE " +" ";" truth "${truth}")
+        string(
+            REGEX
+            REPLACE
+                " +"
+                ";"
+                truth
+                "${truth}"
+        )
         if(NOT (${truth}))
             set(list_append_valid OFF)
             break()
@@ -509,3 +599,51 @@ macro(list_append_if list dep)
     endif()
     set(${list} ${list_append_local_list} PARENT_SCOPE)
 endmacro(list_append_if)
+
+macro(kernel_platforms_list target)
+    list(APPEND ${target} ${KernelRiscVPlatform_all_strings})
+    list(APPEND ${target} ${KernelX86Sel4Arch_all_strings})
+    list(APPEND ${target} ${KernelARMPlatform_all_strings})
+endmacro(kernel_platforms_list)
+
+macro(kernel_platforms_string target)
+    set(plat_names "")
+    kernel_platforms_list(plat_names)
+    string(
+        REPLACE
+            ";"
+            "\n  "
+            ${target}
+            "${plat_names}"
+    )
+endmacro(kernel_platforms_string)
+
+# Checks if a file is older than its dependencies
+# Will set `stale` to TRUE if outfile doesn't exist,
+# or if outfile is older than any file in `deps_list`.
+# stale: A variable to overwrite with TRUE or FALSE
+# outfile: A value that is a valid file path
+# deps_list: A variable that holds a list of file paths
+# e.g:
+#  set(KernelDTSIntermediate "filea" "fileb" "filec")
+#  set(KernelDTBPath "${CMAKE_CURRENT_BINARY_DIR}/kernel.dtb")
+#  check_outfile_stale(regen ${KernelDTBPath} KernelDTSIntermediate)
+#  if (regen)
+#    regen_file(${KernelDTBPath})
+#  endif()
+#
+# The above call will set regen to TRUE if the file referred
+# to by KernelDTBPath doesn't exist, or is older than any files
+# in KernelDTSIntermediate.
+macro(check_outfile_stale stale outfile deps_list)
+    set(${stale} TRUE)
+    if(EXISTS ${outfile})
+        set(${stale} FALSE)
+        foreach(dep IN LISTS ${deps_list})
+            if("${dep}" IS_NEWER_THAN "${outfile}")
+                set(${stale} TRUE)
+                break()
+            endif()
+        endforeach()
+    endif()
+endmacro()

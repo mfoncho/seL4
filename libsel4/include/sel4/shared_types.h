@@ -23,7 +23,7 @@ typedef struct seL4_IPCBuffer_ {
     seL4_CPtr receiveCNode;
     seL4_CPtr receiveIndex;
     seL4_Word receiveDepth;
-} seL4_IPCBuffer __attribute__ ((__aligned__ (sizeof(struct seL4_IPCBuffer_))));
+} seL4_IPCBuffer __attribute__((__aligned__(sizeof(struct seL4_IPCBuffer_))));
 
 enum {
     seL4_CapFault_IP,
@@ -37,13 +37,14 @@ enum {
     SEL4_FORCE_LONG_ENUM(seL4_CapFault_Msg),
 } seL4_CapFault_Msg;
 
-#define seL4_ReadWrite seL4_CapRights_new(0, 1, 1)
-#define seL4_AllRights seL4_CapRights_new(1, 1, 1)
-#define seL4_CanRead   seL4_CapRights_new(0, 1, 0)
-#define seL4_CanWrite  seL4_CapRights_new(0, 0, 1)
-#define seL4_CanGrant  seL4_CapRights_new(1, 0, 0)
-#define seL4_NoWrite   seL4_CapRights_new(1, 1, 0)
-#define seL4_NoRead    seL4_CapRights_new(1, 0, 1)
-#define seL4_NoRights  seL4_CapRights_new(0, 0, 0)
+#define seL4_ReadWrite     seL4_CapRights_new(0, 0, 1, 1)
+#define seL4_AllRights     seL4_CapRights_new(1, 1, 1, 1)
+#define seL4_CanRead       seL4_CapRights_new(0, 0, 1, 0)
+#define seL4_CanWrite      seL4_CapRights_new(0, 0, 0, 1)
+#define seL4_CanGrant      seL4_CapRights_new(0, 1, 0, 0)
+#define seL4_CanGrantReply seL4_CapRights_new(1, 0, 0, 0)
+#define seL4_NoWrite       seL4_CapRights_new(1, 1, 1, 0)
+#define seL4_NoRead        seL4_CapRights_new(1, 1, 0, 1)
+#define seL4_NoRights      seL4_CapRights_new(0, 0, 0, 0)
 
 #endif

@@ -35,15 +35,14 @@ exception_t decodeInvocation(word_t invLabel, word_t length,
                              extra_caps_t excaps, bool_t block, bool_t call,
                              word_t *buffer);
 exception_t performInvocation_Endpoint(endpoint_t *ep, word_t badge,
-                                       bool_t canGrant, bool_t block,
-                                       bool_t call);
+                                       bool_t canGrant, bool_t canGrantReply,
+                                       bool_t block, bool_t call);
 exception_t performInvocation_Notification(notification_t *ntfn,
                                            word_t badge);
-exception_t performInvocation_Reply(tcb_t *thread, cte_t *slot);
+exception_t performInvocation_Reply(tcb_t *thread, cte_t *slot, bool_t canGrant);
 word_t getObjectSize(word_t t, word_t userObjSize);
 
-static inline void
-postCapDeletion(cap_t cap)
+static inline void postCapDeletion(cap_t cap)
 {
     if (cap_get_capType(cap) == cap_irq_handler_cap) {
         irq_t irq = cap_irq_handler_cap_get_capIRQ(cap);

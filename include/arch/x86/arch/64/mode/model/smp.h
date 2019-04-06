@@ -32,7 +32,7 @@ typedef struct nodeInfo {
      */
     word_t currentThreadUserContext;
     cpu_id_t index;
-    PAD_TO_NEXT_CACHE_LN(sizeof(void*) + sizeof(void*) + sizeof(word_t) + sizeof(cpu_id_t));
+    PAD_TO_NEXT_CACHE_LN(sizeof(void *) + sizeof(void *) + sizeof(word_t) + sizeof(cpu_id_t));
 } nodeInfo_t;
 compile_assert(nodeInfoIsCacheSized, (sizeof(nodeInfo_t) % L1_CACHE_LINE_SIZE) == 0)
 
@@ -53,9 +53,9 @@ extern char nodeSkimScratchOffset[];
 static inline CONST cpu_id_t getCurrentCPUIndex(void)
 {
     cpu_id_t index;
-    asm ("movq %%gs:%c[offset], %[result]"
-         : [result] "=r" (index)
-         : [offset] "i" (OFFSETOF(nodeInfo_t, index)));
+    asm("movq %%gs:%c[offset], %[result]"
+        : [result] "=r"(index)
+        : [offset] "i"(OFFSETOF(nodeInfo_t, index)));
     return index;
 }
 

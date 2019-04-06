@@ -139,11 +139,11 @@ static inline uint32_t x86_cpuid_edx(uint32_t eax, uint32_t ecx)
 {
     uint32_t edx, ebx;
     asm volatile("cpuid"
-                 : "=a" (eax),
-                 "=b" (ebx),
-                 "=c" (ecx),
-                 "=d" (edx)
-                 : "a" (eax), "c" (ecx)
+                 : "=a"(eax),
+                 "=b"(ebx),
+                 "=c"(ecx),
+                 "=d"(edx)
+                 : "a"(eax), "c"(ecx)
                  : "memory");
     return edx;
 }
@@ -152,11 +152,11 @@ static inline uint32_t x86_cpuid_eax(uint32_t eax, uint32_t ecx)
 {
     uint32_t edx, ebx;
     asm volatile("cpuid"
-                 : "=a" (eax),
-                 "=b" (ebx),
-                 "=c" (ecx),
-                 "=d" (edx)
-                 : "a" (eax), "c" (ecx)
+                 : "=a"(eax),
+                 "=b"(ebx),
+                 "=c"(ecx),
+                 "=d"(edx)
+                 : "a"(eax), "c"(ecx)
                  : "memory");
     return eax;
 }
@@ -165,11 +165,11 @@ static inline uint32_t x86_cpuid_ecx(uint32_t eax, uint32_t ecx)
 {
     uint32_t edx, ebx;
     asm volatile("cpuid"
-                 : "=a" (eax),
-                 "=b" (ebx),
-                 "=c" (ecx),
-                 "=d" (edx)
-                 : "a" (eax), "c" (ecx)
+                 : "=a"(eax),
+                 "=b"(ebx),
+                 "=c"(ecx),
+                 "=d"(edx)
+                 : "a"(eax), "c"(ecx)
                  : "memory");
     return ecx;
 }
@@ -178,11 +178,11 @@ static inline uint32_t x86_cpuid_ebx(uint32_t eax, uint32_t ecx)
 {
     uint32_t edx, ebx;
     asm volatile("cpuid"
-                 : "=a" (eax),
-                 "=b" (ebx),
-                 "=c" (ecx),
-                 "=d" (edx)
-                 : "a" (eax), "c" (ecx)
+                 : "=a"(eax),
+                 "=b"(ebx),
+                 "=c"(ecx),
+                 "=d"(edx)
+                 : "a"(eax), "c"(ecx)
                  : "memory");
     return ebx;
 }
@@ -191,8 +191,8 @@ static inline uint64_t x86_rdtsc(void)
 {
     uint32_t hi, lo;
     asm volatile("rdtsc"
-                 : "=a" (lo),
-                 "=d" (hi)
+                 : "=a"(lo),
+                 "=d"(hi)
                 );
     return ((uint64_t) hi) << 32llu | (uint64_t) lo;
 }
@@ -292,7 +292,7 @@ static inline word_t x86_read_gs_base(cpu_id_t cpu)
 }
 
 /* Cleaning memory before user-level access */
-static inline void clearMemory(void* ptr, unsigned int bits)
+static inline void clearMemory(void *ptr, unsigned int bits)
 {
     memzero(ptr, BIT(bits));
     /* no cleaning of caches necessary on IA-32 */

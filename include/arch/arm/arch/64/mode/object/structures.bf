@@ -17,6 +17,7 @@ base 64(48,0)
 #else
 base 64(48,1)
 #endif
+#define BF_CANONICAL_RANGE 48
 
 -- Including the common structures_64.bf is neccessary because
 -- we need the structures to be visible here when building
@@ -181,11 +182,24 @@ block vm_attributes {
 -- PGDE, PUDE, PDEs and PTEs, assuming 48-bit physical address
 base 64(48,0)
 
-block pgde {
+-- hw_asids are required in hyp mode
+block pgde_invalid {
+    field stored_hw_asid            8
+    field stored_asid_valid         1
+    padding                         53
+    field pgde_type                 2
+}
+
+block pgde_pud {
     padding                         16
     field_high pud_base_address     36
     padding                         10
-    field reserved                  2 -- must be 0b11
+    field pgde_type                 2 -- must be 0b11
+}
+
+tagged_union pgde pgde_type {
+    tag pgde_invalid                0
+    tag pgde_pud                    3
 }
 
 block pude_1g {
@@ -311,4 +325,4 @@ tagged_union virq virqType {
 }
 #endif /* CONFIG_ARM_HYPERVISOR_SUPPORT */
 
-#include <arch/api/shared_types.bf>
+#include <sel4/arch/shared_types.bf>

@@ -52,15 +52,15 @@ hw_asid_t getHWASID(asid_t asid);
 void copyGlobalMappings(pde_t *newPD);
 findPDForASID_ret_t findPDForASID(asid_t asid);
 lookupPTSlot_ret_t lookupPTSlot(pde_t *pd, vptr_t vptr);
-pde_t* CONST lookupPDSlot(pde_t *pd, vptr_t vptr);
-void deleteASIDPool(asid_t base, asid_pool_t* pool);
-void deleteASID(asid_t asid, pde_t* pd);
-void unmapPageTable(asid_t asid, vptr_t vaddr, pte_t* pt);
+pde_t *CONST lookupPDSlot(pde_t *pd, vptr_t vptr);
+void deleteASIDPool(asid_t base, asid_pool_t *pool);
+void deleteASID(asid_t asid, pde_t *pd);
+void unmapPageTable(asid_t asid, vptr_t vaddr, pte_t *pt);
 void unmapPage(vm_page_size_t page_size, asid_t asid, vptr_t vptr, void *pptr);
 hw_asid_t getHWASID(asid_t asid);
 hw_asid_t findFreeHWASID(void);
-void flushPage(vm_page_size_t page_size, pde_t* pd, asid_t asid, word_t vptr);
-void flushTable(pde_t* pd, asid_t asid, word_t vptr, pte_t* pt);
+void flushPage(vm_page_size_t page_size, pde_t *pd, asid_t asid, word_t vptr);
+void flushTable(pde_t *pd, asid_t asid, word_t vptr, pte_t *pt);
 void flushSpace(asid_t asid);
 void invalidateTLBByASID(asid_t asid);
 
@@ -70,8 +70,13 @@ bool_t CONST isIOSpaceFrameCap(cap_t cap);
 static const region_t BOOT_RODATA mode_reserved_region[] = {
     {
         (PD_ASID_SLOT + 0) << ARMSectionBits,
-        (PD_ASID_SLOT + 1) << ARMSectionBits
+                           (PD_ASID_SLOT + 1) << ARMSectionBits
     }
 };
+
+BOOT_CODE static inline int get_num_reserved_region(void)
+{
+    return sizeof(mode_reserved_region) / sizeof(region_t);
+}
 
 #endif /* __ARCH_MODE_KERNEL_VSPACE_H */

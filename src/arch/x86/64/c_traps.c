@@ -194,7 +194,8 @@ void VISIBLE NORETURN restore_user_context(void)
     // There is a special case where if we would be returning from a sysenter,
     // but are current singlestepping, do a full return like an interrupt
     if (likely(cur_thread->tcbArch.tcbContext.registers[Error] == -1) &&
-            (!config_set(CONFIG_SYSENTER) || !config_set(CONFIG_HARDWARE_DEBUG_API) || ((cur_thread->tcbArch.tcbContext.registers[FLAGS] & FLAGS_TF) == 0))) {
+        (!config_set(CONFIG_SYSENTER) || !config_set(CONFIG_HARDWARE_DEBUG_API)
+         || ((cur_thread->tcbArch.tcbContext.registers[FLAGS] & FLAGS_TF) == 0))) {
         if (config_set(CONFIG_KERNEL_SKIM_WINDOW)) {
             /* if we are using the SKIM window then we are trying to hide kernel state from
              * the user in the case of Meltdown where the kernel region is effectively readable
@@ -259,17 +260,18 @@ void VISIBLE NORETURN restore_user_context(void)
                 // More register but we can ignore and are done restoring
                 // enable interrupt disabled by sysenter
                 "sti\n"
-                /* return to user
-                 * sysexit with rex.w user code = cs + 32, user data = cs + 40.
-                 * without rex.w user code = cs + 16, user data = cs + 24
+                /* Return to user.
+                 *
+                 * SYSEXIT  0F 35     ; Return to compatibility mode from fast system call.
+                 * SYSEXITQ 48 0F 35  ; Return to 64-bit mode from fast system call.
                  * */
-                "rex.w sysexit\n"
+                "sysexitq\n"
                 :
                 : "r"(&cur_thread->tcbArch.tcbContext.registers[RDI]),
 #if defined(ENABLE_SMP_SUPPORT) && defined(CONFIG_KERNEL_SKIM_WINDOW)
                 "r"(user_cr3_r11),
 #endif
-                [IF] "i" (FLAGS_IF)
+                [IF] "i"(FLAGS_IF)
                 // Clobber memory so the compiler is forced to complete all stores
                 // before running this assembler
                 : "memory"
@@ -309,11 +311,11 @@ void VISIBLE NORETURN restore_user_context(void)
                 "xor %%rsp, %%rsp\n"
                 // More register but we can ignore and are done restoring
                 // enable interrupt disabled by sysenter
-                "rex.w sysret\n"
+                "sysretq\n"
                 :
                 : "r"(&cur_thread->tcbArch.tcbContext.registers[RDI])
 #if defined(ENABLE_SMP_SUPPORT) && defined(CONFIG_KERNEL_SKIM_WINDOW)
-                , "c" (user_cr3)
+                , "c"(user_cr3)
 #endif
                 // Clobber memory so the compiler is forced to complete all stores
                 // before running this assembler
@@ -389,8 +391,8 @@ void VISIBLE NORETURN restore_user_context(void)
             :
             : "r"(&cur_thread->tcbArch.tcbContext.registers[RDI])
 #if defined(ENABLE_SMP_SUPPORT) && defined(CONFIG_KERNEL_SKIM_WINDOW)
-            , "c" (user_cr3)
-            , [scratch_offset] "i" (nodeSkimScratchOffset)
+            , "c"(user_cr3)
+            , [scratch_offset] "i"(nodeSkimScratchOffset)
 #endif
             // Clobber memory so the compiler is forced to complete all stores
             // before running this assembler

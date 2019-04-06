@@ -83,7 +83,10 @@ Libsel4Dir = ../libsel4
 GeneratedLatexDir = generated
 GeneratedLatex = $(wildcard $(GeneratedLatexDir)/*.tex)
 
-GenerateLatexTool = tools/parse_doxygen_xml.py
+GeneratedMarkdownDir = generated_markdown
+GeneratedMarkdown = $(wildcard $(GeneratedMarkdownDir)/*.md)
+
+GenerationTool = tools/parse_doxygen_xml.py
 
 GenerateObjectInvocationTool = tools/gen_invocations.py
 
@@ -97,6 +100,7 @@ FORCE:
 ps: $(Ps)
 pdf: generated-latex $(Figures) Makefile $(Pdf)
 diff_pdf: $(Figures) Makefile $(Diff_Pdf)
+markdown: generated-markdown
 
 # Verbosity.
 ifeq (${V},1)
@@ -105,7 +109,7 @@ else
 Q:=@
 endif
 
-.PHONY: doxygen generated-headers generated-latex
+.PHONY: doxygen generated-headers generated-latex generated-markdown
 
 doxygen: generated-headers
 	${Q}$(doxygen)
@@ -115,15 +119,13 @@ ${DoxygenXml}/%.xml: doxygen
 	@echo "====> Generating $@"
 
 # Latex files translated from doxygen-generated xml
-# General object invocations are listed as subsections
-${GeneratedLatexDir}/ObjectApi.tex: ${DoxygenXml}/group__ObjectApi.xml
+${GeneratedLatexDir}/%SystemCalls.tex: ${DoxygenXml}/group__%SystemCalls.xml
 	@echo "====> Generating $@"
-	${Q}${PYTHON} ${GenerateLatexTool} --level subsection --input $< --output $@
+	${Q}${PYTHON} ${GenerationTool} --level 3 --input $< --output $@
 
-# Everything else is listed as subsubsections
 ${GeneratedLatexDir}/%.tex: ${DoxygenXml}/group__%.xml
 	@echo "====> Generating $@"
-	${Q}${PYTHON} ${GenerateLatexTool} --level subsubsection --input $< --output $@
+	${Q}${PYTHON} ${GenerationTool} --level 2 --input $< --output $@
 
 # Collect generated latex files into single rule
 generated-latex: ${GeneratedLatexDir}/GeneralSystemCalls.tex \
@@ -136,7 +138,27 @@ generated-latex: ${GeneratedLatexDir}/GeneralSystemCalls.tex \
                  ${GeneratedLatexDir}/ObjectApiAarch32.tex \
                  ${GeneratedLatexDir}/ObjectApiAarch64.tex \
                  ${GeneratedLatexDir}/ObjectApiIa32.tex \
-                 ${GeneratedLatexDir}/ObjectApiX64.tex
+                 ${GeneratedLatexDir}/ObjectApiX64.tex \
+                 ${GeneratedLatexDir}/ObjectApiRISCV.tex
+
+# Markdown files translated from doxygen-generated xml
+${GeneratedMarkdownDir}/%.md: ${DoxygenXml}/group__%.xml Makefile
+	@echo "====> Generating $@"
+	${Q}${PYTHON} ${GenerationTool} --format markdown --level 2 --input $< --output $@
+
+# Collect generated markdown files into single rule
+generated-markdown: ${GeneratedMarkdownDir}/GeneralSystemCalls.md \
+                 ${GeneratedMarkdownDir}/DebuggingSystemCalls.md \
+                 ${GeneratedMarkdownDir}/BenchmarkingSystemCalls.md \
+                 ${GeneratedMarkdownDir}/X86SystemCalls.md \
+                 ${GeneratedMarkdownDir}/ObjectApi.md \
+                 ${GeneratedMarkdownDir}/ObjectApiX86.md \
+                 ${GeneratedMarkdownDir}/ObjectApiArm.md \
+                 ${GeneratedMarkdownDir}/ObjectApiAarch32.md \
+                 ${GeneratedMarkdownDir}/ObjectApiAarch64.md \
+                 ${GeneratedMarkdownDir}/ObjectApiIa32.md \
+                 ${GeneratedMarkdownDir}/ObjectApiX64.md \
+                 ${GeneratedMarkdownDir}/ObjectApiRISCV.md
 
 # Generate object invocation prototypes
 ${Stage}/object_invocations.h: ${Libsel4Dir}/include/interfaces/sel4.xml \
@@ -145,7 +167,8 @@ ${Stage}/object_invocations.h: ${Libsel4Dir}/include/interfaces/sel4.xml \
                                ${Libsel4Dir}/sel4_arch_include/aarch32/interfaces/sel4arch.xml \
                                ${Libsel4Dir}/sel4_arch_include/aarch64/interfaces/sel4arch.xml \
                                ${Libsel4Dir}/sel4_arch_include/ia32/interfaces/sel4arch.xml \
-                               ${Libsel4Dir}/sel4_arch_include/x86_64/interfaces/sel4arch.xml
+                               ${Libsel4Dir}/sel4_arch_include/x86_64/interfaces/sel4arch.xml \
+                               ${Libsel4Dir}/arch_include/riscv/interfaces/sel4arch.xml
 	@echo "====> Generating documented object invocation header"
 	${Q}${PYTHON} ${GenerateObjectInvocationTool} --dtd ${InterfaceDtd} --output $@ $^
 
@@ -205,7 +228,7 @@ print: pdf
 clean:
 	rm -f *.aux *.toc *.bbl *.blg *.dvi *.log *.pstex* *.eps *.cb *.brf \
 		*.out *.ps *-diff.tex *.mps .log *.pdf *.tgz *~ *.lof *.lot env.tex
-	rm -rf ${DoxygenOutput} ${GeneratedLatexDir}
+	rm -rf ${DoxygenOutput} ${GeneratedLatexDir} ${GeneratedMarkdownDir}
 	rm -rf ${Stage}
 
 tar:	clean

@@ -14,6 +14,9 @@
 #ifndef __ARCH_MACHINE_GICPL390_H
 #define __ARCH_MACHINE_GICPL390_H
 
+/* tell the kernel we have the set trigger feature */
+#define HAVE_SET_TRIGGER 1
+
 #include <stdint.h>
 #include <util.h>
 #include <linker.h>
@@ -136,8 +139,8 @@ struct gic_cpu_iface_map {
     uint32_t component_id[4];       /* [0xFF0, 0xFFF] PL390 only */
 };
 
-extern volatile struct gic_dist_map * const gic_dist;
-extern volatile struct gic_cpu_iface_map * const gic_cpuiface;
+extern volatile struct gic_dist_map *const gic_dist;
+extern volatile struct gic_cpu_iface_map *const gic_cpuiface;
 /*
  * The only sane way to get an GIC IRQ number that can be properly
  * ACKED later is through the int_ack register. Unfortunately, reading
@@ -148,16 +151,14 @@ extern volatile struct gic_cpu_iface_map * const gic_cpuiface;
 extern uint32_t active_irq[CONFIG_MAX_NUM_NODES];
 
 /* Helpers */
-static inline int
-is_irq_edge_triggered(irq_t irq)
+static inline int is_irq_edge_triggered(irq_t irq)
 {
     int word = irq >> 4;
     int bit = ((irq & 0xf) * 2);
     return !!(gic_dist->config[word] & BIT(bit + 1));
 }
 
-static inline void
-dist_pending_clr(irq_t irq)
+static inline void dist_pending_clr(irq_t irq)
 {
     int word = IRQ_REG(irq);
     int bit = IRQ_BIT(irq);
@@ -165,8 +166,7 @@ dist_pending_clr(irq_t irq)
     gic_dist->pending_clr[word] = BIT(bit);
 }
 
-static inline void
-dist_enable_clr(irq_t irq)
+static inline void dist_enable_clr(irq_t irq)
 {
     int word = IRQ_REG(irq);
     int bit = IRQ_BIT(irq);
@@ -174,16 +174,14 @@ dist_enable_clr(irq_t irq)
     gic_dist->enable_clr[word] = BIT(bit);
 }
 
-static inline void
-dist_enable_set(irq_t irq)
+static inline void dist_enable_set(irq_t irq)
 {
     int word = IRQ_REG(irq);
     int bit = IRQ_BIT(irq);
     gic_dist->enable_set[word] = BIT(bit);
 }
 
-static inline interrupt_t
-getActiveIRQ(void)
+static inline interrupt_t getActiveIRQ(void)
 {
     uint32_t irq;
     if (!IS_IRQ_VALID(active_irq[SMP_TERNARY(getCurrentCPUIndex(), 0)])) {
@@ -204,14 +202,12 @@ getActiveIRQ(void)
  * seL4 expects two states: active->inactive.
  * We ignore the active state in GIC to conform
  */
-static inline bool_t
-isIRQPending(void)
+static inline bool_t isIRQPending(void)
 {
     return IS_IRQ_VALID(gic_cpuiface->hi_pend);
 }
 
-static inline void
-maskInterrupt(bool_t disable, interrupt_t irq)
+static inline void maskInterrupt(bool_t disable, interrupt_t irq)
 {
     if (disable) {
         dist_enable_clr(irq);
@@ -220,10 +216,10 @@ maskInterrupt(bool_t disable, interrupt_t irq)
     }
 }
 
-static inline void
-ackInterrupt(irq_t irq)
+static inline void ackInterrupt(irq_t irq)
 {
-    assert(IS_IRQ_VALID(active_irq[SMP_TERNARY(getCurrentCPUIndex(), 0)]) && (active_irq[SMP_TERNARY(getCurrentCPUIndex(), 0)] & IRQ_MASK) == irq);
+    assert(IS_IRQ_VALID(active_irq[SMP_TERNARY(getCurrentCPUIndex(), 0)])
+           && (active_irq[SMP_TERNARY(getCurrentCPUIndex(), 0)] & IRQ_MASK) == irq);
     if (is_irq_edge_triggered(irq)) {
         dist_pending_clr(irq);
     }
@@ -232,8 +228,7 @@ ackInterrupt(irq_t irq)
 
 }
 
-static inline void
-handleSpuriousIRQ(void)
+static inline void handleSpuriousIRQ(void)
 {
 }
 
@@ -273,76 +268,64 @@ struct gich_vcpu_ctrl_map {
 extern volatile struct gich_vcpu_ctrl_map *gic_vcpu_ctrl;
 extern unsigned int gic_vcpu_num_list_regs;
 
-static inline uint32_t
-get_gic_vcpu_ctrl_hcr(void)
+static inline uint32_t get_gic_vcpu_ctrl_hcr(void)
 {
     return gic_vcpu_ctrl->hcr;
 }
 
-static inline void
-set_gic_vcpu_ctrl_hcr(uint32_t hcr)
+static inline void set_gic_vcpu_ctrl_hcr(uint32_t hcr)
 {
     gic_vcpu_ctrl->hcr = hcr;
 }
 
-static inline uint32_t
-get_gic_vcpu_ctrl_vmcr(void)
+static inline uint32_t get_gic_vcpu_ctrl_vmcr(void)
 {
     return gic_vcpu_ctrl->vmcr;
 }
 
-static inline void
-set_gic_vcpu_ctrl_vmcr(uint32_t vmcr)
+static inline void set_gic_vcpu_ctrl_vmcr(uint32_t vmcr)
 {
     gic_vcpu_ctrl->vmcr = vmcr;
 }
 
-static inline uint32_t
-get_gic_vcpu_ctrl_apr(void)
+static inline uint32_t get_gic_vcpu_ctrl_apr(void)
 {
     return gic_vcpu_ctrl->apr;
 }
 
-static inline void
-set_gic_vcpu_ctrl_apr(uint32_t apr)
+static inline void set_gic_vcpu_ctrl_apr(uint32_t apr)
 {
     gic_vcpu_ctrl->apr = apr;
 }
 
-static inline uint32_t
-get_gic_vcpu_ctrl_vtr(void)
+static inline uint32_t get_gic_vcpu_ctrl_vtr(void)
 {
     return gic_vcpu_ctrl->vtr;
 }
 
-static inline uint32_t
-get_gic_vcpu_ctrl_eisr0(void)
+static inline uint32_t get_gic_vcpu_ctrl_eisr0(void)
 {
     return gic_vcpu_ctrl->eisr0;
 }
 
-static inline uint32_t
-get_gic_vcpu_ctrl_eisr1(void)
+static inline uint32_t get_gic_vcpu_ctrl_eisr1(void)
 {
     return gic_vcpu_ctrl->eisr1;
 }
 
-static inline uint32_t
-get_gic_vcpu_ctrl_misr(void)
+static inline uint32_t get_gic_vcpu_ctrl_misr(void)
 {
     return gic_vcpu_ctrl->misr;
 }
 
-static inline virq_t
-get_gic_vcpu_ctrl_lr(int num)
+static inline virq_t get_gic_vcpu_ctrl_lr(int num)
 {
     virq_t virq;
     virq.words[0] = gic_vcpu_ctrl->lr[num];
     return virq;
 }
 
-static inline void
-set_gic_vcpu_ctrl_lr(int num, virq_t lr)
+static inline void set_gic_vcpu_ctrl_lr(int num, virq_t lr)
 {
     gic_vcpu_ctrl->lr[num] = lr.words[0];
 }

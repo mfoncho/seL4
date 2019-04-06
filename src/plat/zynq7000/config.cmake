@@ -17,9 +17,10 @@ if(KernelPlatformZynq7000)
     set(KernelArchArmV7a ON)
     config_set(KernelPlatform PLAT "zynq7000")
     config_set(KernelArmMach MACH "zynq")
+    list(APPEND KernelDTSList "tools/dts/zynq7000.dts")
 endif()
 
 add_sources(
     DEP "KernelPlatformZynq7000"
-    CFILES src/plat/zynq7000/machine/io.c
+    CFILES src/arch/arm/machine/l2c_310.c src/arch/arm/machine/gic_pl390.c
 )

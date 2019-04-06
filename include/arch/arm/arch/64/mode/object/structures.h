@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <util.h>
 #include <api/types.h>
-#include <api/macros.h>
+#include <sel4/macros.h>
 #include <arch/types.h>
 #include <arch/object/structures_gen.h>
 #include <arch/machine/hardware.h>
@@ -26,7 +26,7 @@
 typedef struct arch_tcb {
     user_context_t tcbContext;
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
-    struct vcpu* tcbVCPU;
+    struct vcpu *tcbVCPU;
 #endif
 } arch_tcb_t;
 
@@ -92,13 +92,8 @@ typedef pgde_t vspace_root_t;
 #define VCPU_PTR(r)       ((struct vcpu *)(r))
 #define VCPU_REF(p)       ((word_t)(p))
 
-enum asidSizeConstants {
-    asidHighBits = 7,
-    asidLowBits = seL4_ASIDPoolIndexBits
-};
-
 struct asid_pool {
-    vspace_root_t* array[BIT(asidLowBits)];
+    vspace_root_t *array[BIT(asidLowBits)];
 };
 typedef struct asid_pool asid_pool_t;
 
@@ -114,8 +109,7 @@ typedef struct asid_pool asid_pool_t;
 #define ASID_LOW(a) (a & MASK(asidLowBits))
 #define ASID_HIGH(a) ((a >> asidLowBits) & MASK(asidHighBits))
 
-static inline word_t CONST
-cap_get_archCapSizeBits(cap_t cap)
+static inline word_t CONST cap_get_archCapSizeBits(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -149,8 +143,7 @@ cap_get_archCapSizeBits(cap_t cap)
     }
 }
 
-static inline bool_t CONST
-cap_get_archCapIsPhysical(cap_t cap)
+static inline bool_t CONST cap_get_archCapIsPhysical(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -185,8 +178,7 @@ cap_get_archCapIsPhysical(cap_t cap)
     }
 }
 
-static inline void * CONST
-cap_get_archCapPtr(cap_t cap)
+static inline void *CONST cap_get_archCapPtr(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -220,36 +212,22 @@ cap_get_archCapPtr(cap_t cap)
     }
 }
 
-static inline bool_t
-pgde_ptr_get_present(pgde_t *pgd)
+static inline bool_t pgde_pgde_pud_ptr_get_present(pgde_t *pgd)
 {
-    return (pgde_ptr_get_reserved(pgd) == 0b11);
+    return (pgde_ptr_get_pgde_type(pgd) == pgde_pgde_pud);
 }
 
-static inline pgde_t
-pgde_invalid_new(void)
-{
-    return (pgde_t) {
-        {
-            0
-        }
-    };
-}
-
-static inline bool_t
-pude_pude_pd_ptr_get_present(pude_t *pud)
+static inline bool_t pude_pude_pd_ptr_get_present(pude_t *pud)
 {
     return (pude_ptr_get_pude_type(pud) == pude_pude_pd);
 }
 
-static inline bool_t
-pude_pude_1g_ptr_get_present(pude_t *pud)
+static inline bool_t pude_pude_1g_ptr_get_present(pude_t *pud)
 {
     return (pude_ptr_get_pude_type(pud) == pude_pude_1g);
 }
 
-static inline pude_t
-pude_invalid_new(void)
+static inline pude_t pude_invalid_new(void)
 {
     return (pude_t) {
         {
@@ -258,20 +236,17 @@ pude_invalid_new(void)
     };
 }
 
-static inline bool_t
-pde_pde_small_ptr_get_present(pde_t *pd)
+static inline bool_t pde_pde_small_ptr_get_present(pde_t *pd)
 {
     return (pde_ptr_get_pde_type(pd) == pde_pde_small);
 }
 
-static inline bool_t
-pde_pde_large_ptr_get_present(pde_t *pd)
+static inline bool_t pde_pde_large_ptr_get_present(pde_t *pd)
 {
     return (pde_ptr_get_pde_type(pd) == pde_pde_large);
 }
 
-static inline pde_t
-pde_invalid_new(void)
+static inline pde_t pde_invalid_new(void)
 {
     return (pde_t) {
         {
@@ -280,14 +255,12 @@ pde_invalid_new(void)
     };
 }
 
-static inline bool_t
-pte_ptr_get_present(pte_t *pt)
+static inline bool_t pte_ptr_get_present(pte_t *pt)
 {
-    return (pte_ptr_get_reserved(pt) == 0b11);
+    return (pte_ptr_get_reserved(pt) == 0x3);
 }
 
-static inline pte_t
-pte_invalid_new(void)
+static inline pte_t pte_invalid_new(void)
 {
     return (pte_t) {
         {

@@ -20,38 +20,34 @@
 
 #include <object/notification.h>
 
-static inline tcb_queue_t PURE
-ntfn_ptr_get_queue(notification_t *ntfnPtr)
+static inline tcb_queue_t PURE ntfn_ptr_get_queue(notification_t *ntfnPtr)
 {
     tcb_queue_t ntfn_queue;
 
-    ntfn_queue.head = (tcb_t*)notification_ptr_get_ntfnQueue_head(ntfnPtr);
-    ntfn_queue.end = (tcb_t*)notification_ptr_get_ntfnQueue_tail(ntfnPtr);
+    ntfn_queue.head = (tcb_t *)notification_ptr_get_ntfnQueue_head(ntfnPtr);
+    ntfn_queue.end = (tcb_t *)notification_ptr_get_ntfnQueue_tail(ntfnPtr);
 
     return ntfn_queue;
 }
 
-static inline void
-ntfn_ptr_set_queue(notification_t *ntfnPtr, tcb_queue_t ntfn_queue)
+static inline void ntfn_ptr_set_queue(notification_t *ntfnPtr, tcb_queue_t ntfn_queue)
 {
     notification_ptr_set_ntfnQueue_head(ntfnPtr, (word_t)ntfn_queue.head);
     notification_ptr_set_ntfnQueue_tail(ntfnPtr, (word_t)ntfn_queue.end);
 }
 
-static inline void
-ntfn_set_active(notification_t *ntfnPtr, word_t badge)
+static inline void ntfn_set_active(notification_t *ntfnPtr, word_t badge)
 {
     notification_ptr_set_state(ntfnPtr, NtfnState_Active);
     notification_ptr_set_ntfnMsgIdentifier(ntfnPtr, badge);
 }
 
 
-void
-sendSignal(notification_t *ntfnPtr, word_t badge)
+void sendSignal(notification_t *ntfnPtr, word_t badge)
 {
     switch (notification_ptr_get_state(ntfnPtr)) {
     case NtfnState_Idle: {
-        tcb_t *tcb = (tcb_t*)notification_ptr_get_ntfnBoundTCB(ntfnPtr);
+        tcb_t *tcb = (tcb_t *)notification_ptr_get_ntfnBoundTCB(ntfnPtr);
         /* Check if we are bound and that thread is waiting for a message */
         if (tcb) {
             if (thread_state_ptr_get_tsType(&tcb->tcbState) == ThreadState_BlockedOnReceive) {
@@ -76,6 +72,13 @@ sendSignal(notification_t *ntfnPtr, word_t badge)
                 }
 #endif /* CONFIG_VTX */
             } else {
+                /* In particular, this path is taken when a thread
+                 * is waiting on a reply cap since BlockedOnReply
+                 * would also trigger this path. I.e, a thread
+                 * with a bound notification will not be awakened
+                 * by signals on that bound notification if it is
+                 * in the middle of an seL4_Call.
+                 */
                 ntfn_set_active(ntfnPtr, badge);
             }
         } else {
@@ -120,8 +123,7 @@ sendSignal(notification_t *ntfnPtr, word_t badge)
     }
 }
 
-void
-receiveSignal(tcb_t *thread, cap_t cap, bool_t isBlocking)
+void receiveSignal(tcb_t *thread, cap_t cap, bool_t isBlocking)
 {
     notification_t *ntfnPtr;
 
@@ -162,8 +164,7 @@ receiveSignal(tcb_t *thread, cap_t cap, bool_t isBlocking)
     }
 }
 
-void
-cancelAllSignals(notification_t *ntfnPtr)
+void cancelAllSignals(notification_t *ntfnPtr)
 {
     if (notification_ptr_get_state(ntfnPtr) == NtfnState_Waiting) {
         tcb_t *thread = TCB_PTR(notification_ptr_get_ntfnQueue_head(ntfnPtr));
@@ -181,8 +182,7 @@ cancelAllSignals(notification_t *ntfnPtr)
     }
 }
 
-void
-cancelSignal(tcb_t *threadPtr, notification_t *ntfnPtr)
+void cancelSignal(tcb_t *threadPtr, notification_t *ntfnPtr)
 {
     tcb_queue_t ntfn_queue;
 
@@ -203,8 +203,7 @@ cancelSignal(tcb_t *threadPtr, notification_t *ntfnPtr)
     setThreadState(threadPtr, ThreadState_Inactive);
 }
 
-void
-completeSignal(notification_t *ntfnPtr, tcb_t *tcb)
+void completeSignal(notification_t *ntfnPtr, tcb_t *tcb)
 {
     word_t badge;
 
@@ -217,26 +216,23 @@ completeSignal(notification_t *ntfnPtr, tcb_t *tcb)
     }
 }
 
-static inline void
-doUnbindNotification(notification_t *ntfnPtr, tcb_t *tcbptr)
+static inline void doUnbindNotification(notification_t *ntfnPtr, tcb_t *tcbptr)
 {
     notification_ptr_set_ntfnBoundTCB(ntfnPtr, (word_t) 0);
     tcbptr->tcbBoundNotification = NULL;
 }
 
-void
-unbindMaybeNotification(notification_t *ntfnPtr)
+void unbindMaybeNotification(notification_t *ntfnPtr)
 {
     tcb_t *boundTCB;
-    boundTCB = (tcb_t*)notification_ptr_get_ntfnBoundTCB(ntfnPtr);
+    boundTCB = (tcb_t *)notification_ptr_get_ntfnBoundTCB(ntfnPtr);
 
     if (boundTCB) {
         doUnbindNotification(ntfnPtr, boundTCB);
     }
 }
 
-void
-unbindNotification(tcb_t *tcb)
+void unbindNotification(tcb_t *tcb)
 {
     notification_t *ntfnPtr;
     ntfnPtr = tcb->tcbBoundNotification;
@@ -246,8 +242,7 @@ unbindNotification(tcb_t *tcb)
     }
 }
 
-void
-bindNotification(tcb_t *tcb, notification_t *ntfnPtr)
+void bindNotification(tcb_t *tcb, notification_t *ntfnPtr)
 {
     notification_ptr_set_ntfnBoundTCB(ntfnPtr, (word_t)tcb);
     tcb->tcbBoundNotification = ntfnPtr;

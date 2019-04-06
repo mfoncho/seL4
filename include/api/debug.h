@@ -22,8 +22,7 @@
 
 #ifdef CONFIG_PRINTING
 
-static inline void
-debug_printKernelEntryReason(void)
+static inline void debug_printKernelEntryReason(void)
 {
     printf("\nKernel entry via ");
     switch (ksKernelEntry.path) {
@@ -47,8 +46,8 @@ debug_printKernelEntryReason(void)
     case Entry_Syscall:
         printf("Syscall, number: %ld, %s\n", (long) ksKernelEntry.syscall_no, syscall_names[ksKernelEntry.syscall_no]);
         if (ksKernelEntry.syscall_no == -SysSend ||
-                ksKernelEntry.syscall_no == -SysNBSend ||
-                ksKernelEntry.syscall_no == -SysCall) {
+            ksKernelEntry.syscall_no == -SysNBSend ||
+            ksKernelEntry.syscall_no == -SysCall) {
 
             printf("Cap type: %lu, Invocation tag: %lu\n", (unsigned long) ksKernelEntry.cap_type,
                    (unsigned long) ksKernelEntry.invocation_tag);
@@ -72,8 +71,7 @@ debug_printKernelEntryReason(void)
 }
 
 /* Prints the user context and stack trace of the current thread */
-static inline void
-debug_printUserState(void)
+static inline void debug_printUserState(void)
 {
     tcb_t *tptr = NODE_STATE(ksCurThread);
     printf("Current thread: %s\n", tptr->tcbName);
@@ -82,11 +80,10 @@ debug_printUserState(void)
     Arch_userStackTrace(tptr);
 }
 
-static inline void
-debug_printTCB(tcb_t *tcb)
+static inline void debug_printTCB(tcb_t *tcb)
 {
     printf("%40s\t", tcb->tcbName);
-    char* state;
+    char *state;
     switch (thread_state_get_tsType(tcb->tcbState)) {
     case ThreadState_Inactive:
         state = "inactive";
@@ -125,8 +122,7 @@ debug_printTCB(tcb_t *tcb)
     printf("%15s\t%p\t%20lu\t%lu\n", state, (void *) getRestartPC(tcb), tcb->tcbPriority, core);
 }
 
-static inline void
-debug_dumpScheduler(void)
+static inline void debug_dumpScheduler(void)
 {
     printf("Dumping all tcbs!\n");
     printf("Name                                    \tState          \tIP                  \t Prio \t Core\n");

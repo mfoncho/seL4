@@ -14,12 +14,12 @@
 #include <config.h>
 #include <stdint.h>
 #include <util.h>
-#include <mode/api/shared_types_gen.h>
+#include <sel4/shared_types_gen.h>
 #include <arch/api/types.h>
 #include <arch/types.h>
-#include <api/macros.h>
-#include <api/constants.h>
-#include <api/shared_types.h>
+#include <sel4/macros.h>
+#include <sel4/constants.h>
+#include <sel4/shared_types.h>
 #include <machine/io.h>
 
 /* seL4_CapRights_t defined in mode/api/shared_types.bf */
@@ -42,8 +42,7 @@ enum ctLimits {
     capTransferDataSize = 3
 };
 
-static inline seL4_CapRights_t CONST
-rightsFromWord(word_t w)
+static inline seL4_CapRights_t CONST rightsFromWord(word_t w)
 {
     seL4_CapRights_t seL4_CapRights;
 
@@ -51,14 +50,12 @@ rightsFromWord(word_t w)
     return seL4_CapRights;
 }
 
-static inline word_t CONST
-wordFromRights(seL4_CapRights_t seL4_CapRights)
+static inline word_t CONST wordFromRights(seL4_CapRights_t seL4_CapRights)
 {
-    return seL4_CapRights.words[0] & MASK(3);
+    return seL4_CapRights.words[0] & MASK(seL4_CapRightsBits);
 }
 
-static inline cap_transfer_t PURE
-capTransferFromWords(word_t *wptr)
+static inline cap_transfer_t PURE capTransferFromWords(word_t *wptr)
 {
     cap_transfer_t transfer;
 
@@ -68,8 +65,7 @@ capTransferFromWords(word_t *wptr)
     return transfer;
 }
 
-static inline seL4_MessageInfo_t CONST
-messageInfoFromWord_raw(word_t w)
+static inline seL4_MessageInfo_t CONST messageInfoFromWord_raw(word_t w)
 {
     seL4_MessageInfo_t mi;
 
@@ -77,8 +73,7 @@ messageInfoFromWord_raw(word_t w)
     return mi;
 }
 
-static inline seL4_MessageInfo_t CONST
-messageInfoFromWord(word_t w)
+static inline seL4_MessageInfo_t CONST messageInfoFromWord(word_t w)
 {
     seL4_MessageInfo_t mi;
     word_t len;
@@ -93,8 +88,7 @@ messageInfoFromWord(word_t w)
     return mi;
 }
 
-static inline word_t CONST
-wordFromMessageInfo(seL4_MessageInfo_t mi)
+static inline word_t CONST wordFromMessageInfo(seL4_MessageInfo_t mi)
 {
     return mi.words[0];
 }

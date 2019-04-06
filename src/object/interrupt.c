@@ -25,10 +25,9 @@
 #include <plat/machine/timer.h>
 #include <smp/ipi.h>
 
-exception_t
-decodeIRQControlInvocation(word_t invLabel, word_t length,
-                           cte_t *srcSlot, extra_caps_t excaps,
-                           word_t *buffer)
+exception_t decodeIRQControlInvocation(word_t invLabel, word_t length,
+                                       cte_t *srcSlot, extra_caps_t excaps,
+                                       word_t *buffer)
 {
     if (invLabel == IRQIssueIRQHandler) {
         word_t index, depth, irq_w;
@@ -82,8 +81,7 @@ decodeIRQControlInvocation(word_t invLabel, word_t length,
     }
 }
 
-exception_t
-invokeIRQControl(irq_t irq, cte_t *handlerSlot, cte_t *controlSlot)
+exception_t invokeIRQControl(irq_t irq, cte_t *handlerSlot, cte_t *controlSlot)
 {
     setIRQState(IRQSignal, irq);
     cteInsert(cap_irq_handler_cap_new(irq), controlSlot, handlerSlot);
@@ -91,9 +89,8 @@ invokeIRQControl(irq_t irq, cte_t *handlerSlot, cte_t *controlSlot)
     return EXCEPTION_NONE;
 }
 
-exception_t
-decodeIRQHandlerInvocation(word_t invLabel, irq_t irq,
-                           extra_caps_t excaps)
+exception_t decodeIRQHandlerInvocation(word_t invLabel, irq_t irq,
+                                       extra_caps_t excaps)
 {
     switch (invLabel) {
     case IRQAckIRQ:
@@ -113,7 +110,7 @@ decodeIRQHandlerInvocation(word_t invLabel, irq_t irq,
         slot = excaps.excaprefs[0];
 
         if (cap_get_capType(ntfnCap) != cap_notification_cap ||
-                !cap_notification_cap_get_capNtfnCanSend(ntfnCap)) {
+            !cap_notification_cap_get_capNtfnCanSend(ntfnCap)) {
             if (cap_get_capType(ntfnCap) != cap_notification_cap) {
                 userError("IRQSetHandler: provided cap is not an notification capability.");
             } else {
@@ -141,14 +138,12 @@ decodeIRQHandlerInvocation(word_t invLabel, irq_t irq,
     }
 }
 
-void
-invokeIRQHandler_AckIRQ(irq_t irq)
+void invokeIRQHandler_AckIRQ(irq_t irq)
 {
     maskInterrupt(false, irq);
 }
 
-void
-invokeIRQHandler_SetIRQHandler(irq_t irq, cap_t cap, cte_t *slot)
+void invokeIRQHandler_SetIRQHandler(irq_t irq, cap_t cap, cte_t *slot)
 {
     cte_t *irqSlot;
 
@@ -158,8 +153,7 @@ invokeIRQHandler_SetIRQHandler(irq_t irq, cap_t cap, cte_t *slot)
     cteInsert(cap, slot, irqSlot);
 }
 
-void
-invokeIRQHandler_ClearIRQHandler(irq_t irq)
+void invokeIRQHandler_ClearIRQHandler(irq_t irq)
 {
     cte_t *irqSlot;
 
@@ -168,8 +162,7 @@ invokeIRQHandler_ClearIRQHandler(irq_t irq)
     cteDeleteOne(irqSlot);
 }
 
-void
-deletingIRQHandler(irq_t irq)
+void deletingIRQHandler(irq_t irq)
 {
     cte_t *slot;
 
@@ -178,14 +171,12 @@ deletingIRQHandler(irq_t irq)
     cteDeleteOne(slot);
 }
 
-void
-deletedIRQHandler(irq_t irq)
+void deletedIRQHandler(irq_t irq)
 {
     setIRQState(IRQInactive, irq);
 }
 
-void
-handleInterrupt(irq_t irq)
+void handleInterrupt(irq_t irq)
 {
     if (unlikely(irq > maxIRQ)) {
         /* mask, ack and pretend it didn't happen. We assume that because
@@ -204,7 +195,7 @@ handleInterrupt(irq_t irq)
         cap = intStateIRQNode[irq].cap;
 
         if (cap_get_capType(cap) == cap_notification_cap &&
-                cap_notification_cap_get_capNtfnCanSend(cap)) {
+            cap_notification_cap_get_capNtfnCanSend(cap)) {
             sendSignal(NTFN_PTR(cap_notification_cap_get_capNtfnPtr(cap)),
                        cap_notification_cap_get_capNtfnBadge(cap));
         } else {
@@ -254,14 +245,12 @@ handleInterrupt(irq_t irq)
     ackInterrupt(irq);
 }
 
-bool_t
-isIRQActive(irq_t irq)
+bool_t isIRQActive(irq_t irq)
 {
     return intStateIRQTable[irq] != IRQInactive;
 }
 
-void
-setIRQState(irq_state_t irqState, irq_t irq)
+void setIRQState(irq_state_t irqState, irq_t irq)
 {
     intStateIRQTable[irq] = irqState;
     maskInterrupt(irqState == IRQInactive, irq);

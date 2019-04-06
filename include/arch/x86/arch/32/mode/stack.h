@@ -24,8 +24,7 @@
  * can push to it on entry.
  * @param target_thread The thread we're about to switch to.
  */
-static inline void
-setKernelEntryStackPointer(tcb_t *target_thread)
+static inline void setKernelEntryStackPointer(tcb_t *target_thread)
 {
     word_t register_context_top;
     SMP_COND_STATEMENT(word_t kernel_stack_top);
@@ -39,7 +38,8 @@ setKernelEntryStackPointer(tcb_t *target_thread)
      * current CPU, because we use per-CPU stacks.
      */
     /* save kernel stack pointer for next exception */
-    SMP_COND_STATEMENT(kernel_stack_top = ((word_t)kernel_stack_alloc[getCurrentCPUIndex()]) + BIT(CONFIG_KERNEL_STACK_BITS) - 4);
+    SMP_COND_STATEMENT(kernel_stack_top = ((word_t)kernel_stack_alloc[getCurrentCPUIndex()]) + BIT(
+                                              CONFIG_KERNEL_STACK_BITS) - 4);
     SMP_COND_STATEMENT(NODE_STATE(ksCurThread)->tcbArch.tcbContext.kernelSP = kernel_stack_top);
 
     register_context_top = (word_t)&target_thread->tcbArch.tcbContext.registers[n_contextRegisters];

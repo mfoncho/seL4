@@ -25,27 +25,23 @@
    path. Instead, we can do the unpacking ourselves and explicitly set the high
    bits. */
 
-static inline tcb_t *
-endpoint_ptr_get_epQueue_tail_fp(endpoint_t *ep_ptr)
+static inline tcb_t *endpoint_ptr_get_epQueue_tail_fp(endpoint_t *ep_ptr)
 {
     uint64_t ret = ep_ptr->words[0] & 0xfffffffffffcull;
     return unlikely(ret) ? TCB_PTR(ret | PPTR_BASE) : NULL;
 }
 
-static inline vspace_root_t *
-cap_vtable_cap_get_vspace_root_fp(cap_t vtable_cap)
+static inline vspace_root_t *cap_vtable_cap_get_vspace_root_fp(cap_t vtable_cap)
 {
     return PML4E_PTR(vtable_cap.words[1]);
 }
 
-static inline word_t
-cap_pml4_cap_get_capPML4MappedASID_fp(cap_t vtable_cap)
+static inline word_t cap_pml4_cap_get_capPML4MappedASID_fp(cap_t vtable_cap)
 {
     return (uint32_t)vtable_cap.words[0];
 }
 
-static inline void FORCE_INLINE
-switchToThread_fp(tcb_t *thread, vspace_root_t *vroot, pde_t stored_hw_asid)
+static inline void FORCE_INLINE switchToThread_fp(tcb_t *thread, vspace_root_t *vroot, pde_t stored_hw_asid)
 {
     word_t new_vroot = pptr_to_paddr(vroot);
     /* the asid is the 12-bit PCID */
@@ -59,8 +55,8 @@ switchToThread_fp(tcb_t *thread, vspace_root_t *vroot, pde_t stored_hw_asid)
 #ifdef ENABLE_SMP_SUPPORT
     asm volatile("movq %[value], %%gs:%c[offset]"
                  :
-                 : [value] "r" (&thread->tcbArch.tcbContext.registers[Error + 1]),
-                 [offset] "i" (OFFSETOF(nodeInfo_t, currentThreadUserContext)));
+                 : [value] "r"(&thread->tcbArch.tcbContext.registers[Error + 1]),
+                 [offset] "i"(OFFSETOF(nodeInfo_t, currentThreadUserContext)));
 #endif /* ENABLE_SMP_SUPPORT */
 
     if (config_set(CONFIG_KERNEL_X86_IBPB_ON_CONTEXT_SWITCH)) {
@@ -78,36 +74,31 @@ switchToThread_fp(tcb_t *thread, vspace_root_t *vroot, pde_t stored_hw_asid)
     NODE_STATE(ksCurThread) = thread;
 }
 
-static inline void
-thread_state_ptr_set_blockingIPCDiminish_np(thread_state_t *ts_ptr, word_t dim)
+static inline void thread_state_ptr_set_blockingIPCDiminish_np(thread_state_t *ts_ptr, word_t dim)
 {
     ts_ptr->words[1] = (ts_ptr->words[1] & 1) | dim;
 }
 
-static inline void
-mdb_node_ptr_mset_mdbNext_mdbRevocable_mdbFirstBadged(
+static inline void mdb_node_ptr_mset_mdbNext_mdbRevocable_mdbFirstBadged(
     mdb_node_t *node_ptr, word_t mdbNext,
     word_t mdbRevocable, word_t mdbFirstBadged)
 {
     node_ptr->words[1] = mdbNext | (mdbRevocable << 1) | mdbFirstBadged;
 }
 
-static inline void
-mdb_node_ptr_set_mdbPrev_np(mdb_node_t *node_ptr, word_t mdbPrev)
+static inline void mdb_node_ptr_set_mdbPrev_np(mdb_node_t *node_ptr, word_t mdbPrev)
 {
     node_ptr->words[0] = mdbPrev;
 }
 
-static inline bool_t
-isValidVTableRoot_fp(cap_t vspace_root_cap)
+static inline bool_t isValidVTableRoot_fp(cap_t vspace_root_cap)
 {
     /* Check the cap is a pml4_cap, and that it is mapped. The fields are next
        to each other, so they can be read and checked in parallel */
     return (vspace_root_cap.words[0] >> (64 - 6)) == ((cap_pml4_cap << 1) | 0x1);
 }
 
-static inline void
-fastpath_copy_mrs(word_t length, tcb_t *src, tcb_t *dest)
+static inline void fastpath_copy_mrs(word_t length, tcb_t *src, tcb_t *dest)
 {
     word_t i;
     register_t reg;
@@ -125,7 +116,7 @@ fastpath_copy_mrs(word_t length, tcb_t *src, tcb_t *dest)
    which appears above it is zero. We are assuming that n_msgRegisters == 4
    for this check to be useful. By masking out the bottom 3 bits, we are
    really checking that n + 3 <= MASK(3), i.e. n + 3 <= 7 or n <= 4. */
-compile_assert (n_msgRegisters_eq_4, n_msgRegisters == 4)
+compile_assert(n_msgRegisters_eq_4, n_msgRegisters == 4)
 static inline int
 fastpath_mi_check(word_t msgInfo)
 {
@@ -133,10 +124,10 @@ fastpath_mi_check(word_t msgInfo)
             + 3) & ~MASK(3);
 }
 
-static inline void NORETURN FORCE_INLINE
-fastpath_restore(word_t badge, word_t msgInfo, tcb_t *cur_thread)
+static inline void NORETURN FORCE_INLINE fastpath_restore(word_t badge, word_t msgInfo, tcb_t *cur_thread)
 {
-    if (config_set(CONFIG_SYSENTER) && config_set(CONFIG_HARDWARE_DEBUG_API) && ((getRegister(NODE_STATE(ksCurThread), FLAGS) & FLAGS_TF) != 0)) {
+    if (config_set(CONFIG_SYSENTER) && config_set(CONFIG_HARDWARE_DEBUG_API)
+        && ((getRegister(NODE_STATE(ksCurThread), FLAGS) & FLAGS_TF) != 0)) {
         /* If single stepping using sysenter we need to do a return using iret to avoid
          * a race condition in restoring the flags (which enables stepping and interrupts) and
          * calling sysexit. This case is handled in restore_user_context so we just go there
@@ -189,7 +180,7 @@ fastpath_restore(word_t badge, word_t msgInfo, tcb_t *cur_thread)
 #if defined(ENABLE_SMP_SUPPORT) && defined(CONFIG_KERNEL_SKIM_WINDOW)
         register word_t next_cr3_r11 asm("r11") = next_cr3;
 #endif
-        asm volatile (
+        asm volatile(
             "movq %%rcx, %%rsp\n"
             "popq %%rax\n"
             "popq %%rbx\n"
@@ -227,15 +218,15 @@ fastpath_restore(word_t badge, word_t msgInfo, tcb_t *cur_thread)
 #endif /* CONFIG_KERNEL_SKIM_WINDOW */
 #endif /* defined(ENABLE_SMP_SUPPORT) && defined(CONFIG_KERNEL_SKIM_WINDOW) */
             "sti\n"
-            "rex.w sysexit\n"
+            "sysexitq\n"
             :
-            : "c" (&cur_thread->tcbArch.tcbContext.registers[RAX]),
-            "D" (badge),
-            "S" (msgInfo),
+            : "c"(&cur_thread->tcbArch.tcbContext.registers[RAX]),
+            "D"(badge),
+            "S"(msgInfo),
 #if defined(ENABLE_SMP_SUPPORT) && defined(CONFIG_KERNEL_SKIM_WINDOW)
             "r"(next_cr3_r11),
 #endif
-            [IF] "i" (FLAGS_IF)
+            [IF] "i"(FLAGS_IF)
             : "memory"
         );
     } else {
@@ -271,13 +262,13 @@ fastpath_restore(word_t badge, word_t msgInfo, tcb_t *cur_thread)
             "xor %%rsp, %%rsp\n"
             // More register but we can ignore and are done restoring
             // enable interrupt disabled by sysenter
-            "rex.w sysret\n"
+            "sysretq\n"
             :
             : "r"(&cur_thread->tcbArch.tcbContext.registers[RAX]),
-            "D" (badge),
-            "S" (msgInfo)
+            "D"(badge),
+            "S"(msgInfo)
 #if defined(ENABLE_SMP_SUPPORT) && defined(CONFIG_KERNEL_SKIM_WINDOW)
-            , "c" (next_cr3)
+            , "c"(next_cr3)
 #endif
             : "memory"
         );

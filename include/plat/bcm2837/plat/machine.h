@@ -12,15 +12,12 @@
 
 #ifndef __PLAT_MACHINE_H
 #define __PLAT_MACHINE_H
-#include <plat/machine/devices.h>
+#include <plat/machine/devices_gen.h>
 #include <machine/io.h>
-
-#define N_INTERRUPTS     96
 
 #define BASIC_IRQ_OFFSET                32
 #define NORMAL_IRQ_OFFSET               (BASIC_IRQ_OFFSET + 32)
 
-#define MAX_IRQ (32 + 32 + 64 -1)
 enum IRQConstants {
     INTERRUPT_CORE_CNTPSIRQ                  =  0,
     INTERRUPT_CORE_CNTPNSIRQ                 =  1,
@@ -37,16 +34,16 @@ enum IRQConstants {
     //17:12 Peripheral 1..15 interrupt (Currently not used)
     //31:28 <Reserved>
 
-    INTERRUPT_BASIC_IRQ_ARM_TIMER            =  (BASIC_IRQ_OFFSET + 0),
-    INTERRUPT_BASIC_IRQ_ARM_MAILBOX          =  (BASIC_IRQ_OFFSET + 1),
-    INTERRUPT_BASIC_IRQ_ARM_DOORBELL0        =  (BASIC_IRQ_OFFSET + 2),
-    INTERRUPT_BASIC_IRQ_ARM_DOORBELL1        =  (BASIC_IRQ_OFFSET + 3),
-    INTERRUPT_BASIC_IRQ_GPU0_HALTED          =  (BASIC_IRQ_OFFSET + 4),
-    INTERRUPT_BASIC_IRQ_GPU1_HALTED          =  (BASIC_IRQ_OFFSET + 5),
-    INTERRUPT_BASIC_IRQ_ILLEGAL_ACCESS_TYPE1 =  (BASIC_IRQ_OFFSET + 6),
-    INTERRUPT_BASIC_IRQ_ILLEGAL_ACCESS_TYPE0 =  (BASIC_IRQ_OFFSET + 7),
-    INTERRUPT_BASIC_IRQ_PENDING_REGISTER1    =  (BASIC_IRQ_OFFSET + 8),
-    INTERRUPT_BASIC_IRQ_PENDING_REGISTER2    =  (BASIC_IRQ_OFFSET + 9),
+    INTERRUPT_BASIC_IRQ_ARM_TIMER            = (BASIC_IRQ_OFFSET + 0),
+    INTERRUPT_BASIC_IRQ_ARM_MAILBOX          = (BASIC_IRQ_OFFSET + 1),
+    INTERRUPT_BASIC_IRQ_ARM_DOORBELL0        = (BASIC_IRQ_OFFSET + 2),
+    INTERRUPT_BASIC_IRQ_ARM_DOORBELL1        = (BASIC_IRQ_OFFSET + 3),
+    INTERRUPT_BASIC_IRQ_GPU0_HALTED          = (BASIC_IRQ_OFFSET + 4),
+    INTERRUPT_BASIC_IRQ_GPU1_HALTED          = (BASIC_IRQ_OFFSET + 5),
+    INTERRUPT_BASIC_IRQ_ILLEGAL_ACCESS_TYPE1 = (BASIC_IRQ_OFFSET + 6),
+    INTERRUPT_BASIC_IRQ_ILLEGAL_ACCESS_TYPE0 = (BASIC_IRQ_OFFSET + 7),
+    INTERRUPT_BASIC_IRQ_PENDING_REGISTER1    = (BASIC_IRQ_OFFSET + 8),
+    INTERRUPT_BASIC_IRQ_PENDING_REGISTER2    = (BASIC_IRQ_OFFSET + 9),
     INTERRUPT_BASIC_IRQ_GPU_IRQ_7            = (BASIC_IRQ_OFFSET + 10),
     INTERRUPT_BASIC_IRQ_GPU_IRQ_9            = (BASIC_IRQ_OFFSET + 11),
     INTERRUPT_BASIC_IRQ_GPU_IRQ_10           = (BASIC_IRQ_OFFSET + 12),
@@ -73,12 +70,8 @@ enum IRQConstants {
     INTERRUPT_IRQ_SPI                        = (NORMAL_IRQ_OFFSET + 54),
     INTERRUPT_IRQ_PCM                        = (NORMAL_IRQ_OFFSET + 55),
     INTERRUPT_IRQ_UART                       = (NORMAL_IRQ_OFFSET + 57),
-    maxIRQ = MAX_IRQ
+    maxIRQ = (32 + 32 + 64 - 1)
 } platform_interrupt_t;
-
-#define IRQ_CNODE_BITS 12
-
-#define KERNEL_TIMER_IRQ INTERRUPT_CORE_CNTVIRQ
 
 #define FIQCTRL_FIQ_ENABLE                   BIT(7)
 #define FIQCTRL_FIQ_SRC_GPU_IRQ(x)           (x)
@@ -93,7 +86,6 @@ enum IRQConstants {
 #define FIQCTRL_FIQ_SRC(src)                 (FIQCTRL_FIQ_SRC_##src)
 
 volatile struct intc_regs {
-    uint8_t  res[0x200];
     uint32_t bfIRQBasicPending;  /* 0x200 R     */
     uint32_t bfGPUIRQPending[2]; /* 0x204 R     */
     uint32_t FIQ_control;        /* 0x20C R/W   */
@@ -101,7 +93,7 @@ volatile struct intc_regs {
     uint32_t bfEnableBasicIRQs;  /* 0x218 R/Wbs */
     uint32_t bfDisableIRQs[2];   /* 0x21C R/Wbc */
     uint32_t bfDisableBasicIRQs; /* 0x224 R/Wbc */
-} *intc_regs = (volatile struct intc_regs*)INTC_PPTR;
+} *intc_regs = (volatile struct intc_regs *)INTC_PPTR;
 
 volatile struct core_regs {
     uint32_t controlRegister;           /* 0x00 */
@@ -126,7 +118,7 @@ volatile struct core_regs {
     uint32_t coreFIQSource[4];          /* 0x70 FIQ source registers */
     uint32_t coreMailboxWriteset[4][4]; /* 0x80 Mailbox write-set registers (Write only) */
     uint32_t coreMailboxRW[4][4];       /* 0xC0 Mailbox write-clear registers (Read & Write) */
-} *core_regs = (volatile struct core_regs*) ARM_LOCAL_PPTR;
+} *core_regs = (volatile struct core_regs *) ARM_LOCAL_PPTR;
 
 #define LOCAL_TIMER_IRQ_STATUS  31
 #define LOCAL_TIMER_CTRL_IRQ_BIT 29
@@ -140,22 +132,13 @@ enum irqNumbers {
     irqInvalid = (irq_t) - 1
 };
 
-static inline void
-handleReservedIRQ(irq_t irq)
-{
-    if (config_set(CONFIG_IRQ_REPORTING)) {
-        printf("Received reserved IRQ: %d\n", (int)irq);
-    }
-}
-
 interrupt_t
 getActiveIRQ(void);
 
 void
 maskInterrupt(bool_t disable, interrupt_t irq);
 
-static inline bool_t
-isIRQPending(void)
+static inline bool_t isIRQPending(void)
 {
     uint32_t pending;
     pending = core_regs->coreIRQSource[0];
@@ -165,14 +148,12 @@ isIRQPending(void)
     return pending != 0;
 }
 
-static inline void
-ackInterrupt(UNUSED irq_t irq)
+static inline void ackInterrupt(UNUSED irq_t irq)
 {
     /* No way to ACK an interrupt */
 }
 
-static inline void
-handleSpuriousIRQ(void)
+static inline void handleSpuriousIRQ(void)
 {
     /* Nothing to do here */
 }

@@ -22,11 +22,11 @@
 #include <util.h>
 
 /* (node-local) state accessed only during bootstrapping */
+#define IRQ_CNODE_BITS (seL4_WordBits - clzl(maxIRQ * sizeof(cte_t)))
 
 ndks_boot_t ndks_boot BOOT_DATA;
 
-BOOT_CODE bool_t
-insert_region(region_t reg)
+BOOT_CODE bool_t insert_region(region_t reg)
 {
     word_t i;
 
@@ -43,14 +43,12 @@ insert_region(region_t reg)
     return false;
 }
 
-BOOT_CODE static inline word_t
-reg_size(region_t reg)
+BOOT_CODE static inline word_t reg_size(region_t reg)
 {
     return reg.end - reg.start;
 }
 
-BOOT_CODE pptr_t
-alloc_region(word_t size_bits)
+BOOT_CODE pptr_t alloc_region(word_t size_bits)
 {
     word_t i;
     word_t reg_index = 0; /* gcc cannot work out that this will not be used uninitialized */
@@ -70,7 +68,7 @@ alloc_region(word_t size_bits)
     for (i = 0; i < MAX_NUM_FREEMEM_REG; i++) {
         /* Determine whether placing the region at the start or the end will create a bigger left over region */
         if (ROUND_UP(ndks_boot.freemem[i].start, size_bits) - ndks_boot.freemem[i].start <
-                ndks_boot.freemem[i].end - ROUND_DOWN(ndks_boot.freemem[i].end, size_bits)) {
+            ndks_boot.freemem[i].end - ROUND_DOWN(ndks_boot.freemem[i].end, size_bits)) {
             new_reg.start = ROUND_UP(ndks_boot.freemem[i].start, size_bits);
             new_reg.end = new_reg.start + BIT(size_bits);
         } else {
@@ -78,8 +76,8 @@ alloc_region(word_t size_bits)
             new_reg.start = new_reg.end - BIT(size_bits);
         }
         if (new_reg.end > new_reg.start &&
-                new_reg.start >= ndks_boot.freemem[i].start &&
-                new_reg.end <= ndks_boot.freemem[i].end) {
+            new_reg.start >= ndks_boot.freemem[i].start &&
+            new_reg.end <= ndks_boot.freemem[i].end) {
             if (new_reg.start - ndks_boot.freemem[i].start < ndks_boot.freemem[i].end - new_reg.end) {
                 new_rem_small.start = ndks_boot.freemem[i].start;
                 new_rem_small.end = new_reg.start;
@@ -91,9 +89,9 @@ alloc_region(word_t size_bits)
                 new_rem_small.start = new_reg.end;
                 new_rem_small.end = ndks_boot.freemem[i].end;
             }
-            if ( is_reg_empty(reg) ||
-                    (reg_size(new_rem_small) < reg_size(rem_small)) ||
-                    (reg_size(new_rem_small) == reg_size(rem_small) && reg_size(new_rem_large) < reg_size(rem_large)) ) {
+            if (is_reg_empty(reg) ||
+                (reg_size(new_rem_small) < reg_size(rem_small)) ||
+                (reg_size(new_rem_small) == reg_size(rem_small) && reg_size(new_rem_large) < reg_size(rem_large))) {
                 reg = new_reg;
                 rem_small = new_rem_small;
                 rem_large = new_rem_large;
@@ -116,13 +114,12 @@ alloc_region(word_t size_bits)
     return reg.start;
 }
 
-BOOT_CODE void
-write_slot(slot_ptr_t slot_ptr, cap_t cap)
+BOOT_CODE void write_slot(slot_ptr_t slot_ptr, cap_t cap)
 {
     slot_ptr->cap = cap;
 
     slot_ptr->cteMDBNode = nullMDBNode;
-    mdb_node_ptr_set_mdbRevocable  (&slot_ptr->cteMDBNode, true);
+    mdb_node_ptr_set_mdbRevocable(&slot_ptr->cteMDBNode, true);
     mdb_node_ptr_set_mdbFirstBadged(&slot_ptr->cteMDBNode, true);
 }
 
@@ -163,20 +160,19 @@ create_root_cnode(void)
     return cap;
 }
 
-compile_assert(irq_cnode_size, BIT(IRQ_CNODE_BITS - seL4_SlotBits) > maxIRQ)
 
-BOOT_CODE bool_t
-create_irq_cnode(void)
+BOOT_CODE bool_t create_irq_cnode(void)
 {
     pptr_t pptr;
+    assert(BIT(IRQ_CNODE_BITS - seL4_SlotBits) > maxIRQ);
     /* create an empty IRQ CNode */
     pptr = alloc_region(IRQ_CNODE_BITS);
     if (!pptr) {
         printf("Kernel init failing: could not create irq cnode\n");
         return false;
     }
-    memzero((void*)pptr, 1 << IRQ_CNODE_BITS);
-    intStateIRQNode = (cte_t*)pptr;
+    memzero((void *)pptr, 1 << IRQ_CNODE_BITS);
+    intStateIRQNode = (cte_t *)pptr;
     return true;
 }
 
@@ -204,8 +200,7 @@ create_domain_cap(cap_t root_cnode_cap)
 }
 
 
-BOOT_CODE cap_t
-create_ipcbuf_frame(cap_t root_cnode_cap, cap_t pd_cap, vptr_t vptr)
+BOOT_CODE cap_t create_ipcbuf_frame(cap_t root_cnode_cap, cap_t pd_cap, vptr_t vptr)
 {
     cap_t cap;
     pptr_t pptr;
@@ -216,7 +211,7 @@ create_ipcbuf_frame(cap_t root_cnode_cap, cap_t pd_cap, vptr_t vptr)
         printf("Kernel init failing: could not create ipc buffer frame\n");
         return cap_null_cap_new();
     }
-    clearMemory((void*)pptr, PAGE_BITS);
+    clearMemory((void *)pptr, PAGE_BITS);
 
     /* create a cap of it and write it into the root CNode */
     cap = create_mapped_it_frame_cap(pd_cap, pptr, vptr, IT_ASID, false, false);
@@ -225,8 +220,7 @@ create_ipcbuf_frame(cap_t root_cnode_cap, cap_t pd_cap, vptr_t vptr)
     return cap;
 }
 
-BOOT_CODE void
-create_bi_frame_cap(
+BOOT_CODE void create_bi_frame_cap(
     cap_t      root_cnode_cap,
     cap_t      pd_cap,
     pptr_t     pptr,
@@ -240,8 +234,7 @@ create_bi_frame_cap(
     write_slot(SLOT_PTR(pptr_of_cap(root_cnode_cap), seL4_CapBootInfoFrame), cap);
 }
 
-BOOT_CODE region_t
-allocate_extra_bi_region(word_t extra_size)
+BOOT_CODE region_t allocate_extra_bi_region(word_t extra_size)
 {
     /* determine power of 2 size of this region. avoid calling clzl on 0 though */
     if (extra_size == 0) {
@@ -257,7 +250,7 @@ allocate_extra_bi_region(word_t extra_size)
         return REG_EMPTY;
     }
 
-    clearMemory((void*)pptr, size_bits);
+    clearMemory((void *)pptr, size_bits);
     ndks_boot.bi_frame->extraLen = BIT(size_bits);
 
     return (region_t) {
@@ -265,8 +258,7 @@ allocate_extra_bi_region(word_t extra_size)
     };
 }
 
-BOOT_CODE pptr_t
-allocate_bi_frame(
+BOOT_CODE pptr_t allocate_bi_frame(
     node_id_t  node_id,
     word_t   num_nodes,
     vptr_t ipcbuf_vptr
@@ -280,7 +272,7 @@ allocate_bi_frame(
         printf("Kernel init failed: could not allocate bootinfo frame\n");
         return 0;
     }
-    clearMemory((void*)pptr, BI_FRAME_SIZE_BITS);
+    clearMemory((void *)pptr, BI_FRAME_SIZE_BITS);
 
     /* initialise bootinfo-related global state */
     ndks_boot.bi_frame = BI_PTR(pptr);
@@ -299,8 +291,7 @@ allocate_bi_frame(
     return pptr;
 }
 
-BOOT_CODE bool_t
-provide_cap(cap_t root_cnode_cap, cap_t cap)
+BOOT_CODE bool_t provide_cap(cap_t root_cnode_cap, cap_t cap)
 {
     if (ndks_boot.slot_pos_cur >= ndks_boot.slot_pos_max) {
         printf("Kernel init failed: ran out of cap slots\n");
@@ -311,8 +302,7 @@ provide_cap(cap_t root_cnode_cap, cap_t cap)
     return true;
 }
 
-BOOT_CODE create_frames_of_region_ret_t
-create_frames_of_region(
+BOOT_CODE create_frames_of_region_ret_t create_frames_of_region(
     cap_t    root_cnode_cap,
     cap_t    pd_cap,
     region_t reg,
@@ -329,7 +319,7 @@ create_frames_of_region(
 
     for (f = reg.start; f < reg.end; f += BIT(PAGE_BITS)) {
         if (do_map) {
-            frame_cap = create_mapped_it_frame_cap(pd_cap, f, pptr_to_paddr((void*)(f - pv_offset)), IT_ASID, false, true);
+            frame_cap = create_mapped_it_frame_cap(pd_cap, f, pptr_to_paddr((void *)(f - pv_offset)), IT_ASID, false, true);
         } else {
             frame_cap = create_unmapped_it_frame_cap(f, false);
         }
@@ -346,8 +336,7 @@ create_frames_of_region(
     };
 }
 
-BOOT_CODE cap_t
-create_it_asid_pool(cap_t root_cnode_cap)
+BOOT_CODE cap_t create_it_asid_pool(cap_t root_cnode_cap)
 {
     pptr_t ap_pptr;
     cap_t  ap_cap;
@@ -371,8 +360,7 @@ create_it_asid_pool(cap_t root_cnode_cap)
     return ap_cap;
 }
 
-BOOT_CODE bool_t
-create_idle_thread(void)
+BOOT_CODE bool_t create_idle_thread(void)
 {
     pptr_t pptr;
 
@@ -397,8 +385,7 @@ create_idle_thread(void)
     return true;
 }
 
-BOOT_CODE tcb_t *
-create_initial_thread(
+BOOT_CODE tcb_t *create_initial_thread(
     cap_t  root_cnode_cap,
     cap_t  it_pd_cap,
     vptr_t ui_v_entry,
@@ -409,7 +396,7 @@ create_initial_thread(
 {
     pptr_t pptr;
     cap_t  cap;
-    tcb_t* tcb;
+    tcb_t *tcb;
     deriveCap_ret_t dc_ret;
 
     /* allocate TCB */
@@ -418,7 +405,7 @@ create_initial_thread(
         printf("Kernel init failed: Unable to allocate tcb for initial thread\n");
         return NULL;
     }
-    memzero((void*)pptr, 1 << seL4_TCBBits);
+    memzero((void *)pptr, 1 << seL4_TCBBits);
     tcb = TCB_PTR(pptr + TCB_OFFSET);
     tcb->tcbTimeSlice = CONFIG_TIME_SLICE;
     Arch_initContext(&tcb->tcbArch.tcbContext);
@@ -477,8 +464,7 @@ create_initial_thread(
     return tcb;
 }
 
-BOOT_CODE void
-init_core_state(tcb_t *scheduler_action)
+BOOT_CODE void init_core_state(tcb_t *scheduler_action)
 {
 #ifdef CONFIG_HAVE_FPU
     NODE_STATE(ksActiveFPUState) = NULL;
@@ -487,7 +473,7 @@ init_core_state(tcb_t *scheduler_action)
     /* add initial threads to the debug queue */
     NODE_STATE(ksDebugTCBs) = NULL;
     if (scheduler_action != SchedulerAction_ResumeCurrentThread &&
-            scheduler_action != SchedulerAction_ChooseNewThread) {
+        scheduler_action != SchedulerAction_ChooseNewThread) {
         tcbDebugAppend(scheduler_action);
     }
     tcbDebugAppend(NODE_STATE(ksIdleThread));
@@ -496,8 +482,7 @@ init_core_state(tcb_t *scheduler_action)
     NODE_STATE(ksCurThread) = NODE_STATE(ksIdleThread);
 }
 
-BOOT_CODE static bool_t
-provide_untyped_cap(
+BOOT_CODE static bool_t provide_untyped_cap(
     cap_t      root_cnode_cap,
     bool_t     device_memory,
     pptr_t     pptr,
@@ -510,7 +495,7 @@ provide_untyped_cap(
     word_t i = ndks_boot.slot_pos_cur - first_untyped_slot;
     if (i < CONFIG_MAX_NUM_BOOTINFO_UNTYPED_CAPS) {
         ndks_boot.bi_frame->untypedList[i] = (seL4_UntypedDesc) {
-            pptr_to_paddr((void*)pptr), 0, 0, size_bits, device_memory
+            pptr_to_paddr((void *)pptr), 0, 0, size_bits, device_memory
         };
         ut_cap = cap_untyped_cap_new(MAX_FREE_INDEX(size_bits),
                                      device_memory, size_bits, pptr);
@@ -522,14 +507,7 @@ provide_untyped_cap(
     return ret;
 }
 
-/** DONT_TRANSLATE */
-BOOT_CODE static word_t boot_ctzl (word_t x)
-{
-    return ctzl(x);
-}
-
-BOOT_CODE bool_t
-create_untypeds_for_region(
+BOOT_CODE bool_t create_untypeds_for_region(
     cap_t      root_cnode_cap,
     bool_t     device_memory,
     region_t   reg,
@@ -545,7 +523,7 @@ create_untypeds_for_region(
 
         /* Determine the alignment of the region */
         if (reg.start != 0) {
-            align_bits = boot_ctzl(reg.start);
+            align_bits = ctzl(reg.start);
         } else {
             align_bits = size_bits;
         }
@@ -567,8 +545,8 @@ create_untypeds_for_region(
     return true;
 }
 
-BOOT_CODE bool_t
-create_kernel_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg, seL4_SlotPos first_untyped_slot)
+BOOT_CODE bool_t create_kernel_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg,
+                                        seL4_SlotPos first_untyped_slot)
 {
     word_t     i;
     region_t   reg;
@@ -590,8 +568,7 @@ create_kernel_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg, seL4_S
     return true;
 }
 
-BOOT_CODE void
-bi_finalise(void)
+BOOT_CODE void bi_finalise(void)
 {
     seL4_SlotPos slot_pos_start = ndks_boot.slot_pos_cur;
     seL4_SlotPos slot_pos_end = ndks_boot.slot_pos_max;

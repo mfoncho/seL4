@@ -15,17 +15,15 @@
 
 #include <stdarg.h>
 
-void
-putchar(char c)
+void putchar(char c)
 {
-    putConsoleChar(c);
+    putDebugChar(c);
     if (c == '\n') {
-        putConsoleChar('\r');
+        putDebugChar('\r');
     }
 }
 
-static unsigned int
-print_spaces(int n)
+static unsigned int print_spaces(int n)
 {
     for (int i = 0; i < n; i++) {
         kernel_putchar(' ');
@@ -34,8 +32,7 @@ print_spaces(int n)
     return n;
 }
 
-static unsigned int
-print_string(const char *s)
+static unsigned int print_string(const char *s)
 {
     unsigned int n;
 
@@ -46,8 +43,7 @@ print_string(const char *s)
     return n;
 }
 
-static unsigned long
-xdiv(unsigned long x, unsigned int denom)
+static unsigned long xdiv(unsigned long x, unsigned int denom)
 {
     switch (denom) {
     case 16:
@@ -59,8 +55,7 @@ xdiv(unsigned long x, unsigned int denom)
     }
 }
 
-static unsigned long
-xmod(unsigned long x, unsigned int denom)
+static unsigned long xmod(unsigned long x, unsigned int denom)
 {
     switch (denom) {
     case 16:
@@ -72,8 +67,7 @@ xmod(unsigned long x, unsigned int denom)
     }
 }
 
-word_t
-print_unsigned_long(unsigned long x, word_t ui_base)
+word_t print_unsigned_long(unsigned long x, word_t ui_base)
 {
     char out[sizeof(unsigned long) * 2 + 3];
     word_t i, j;
@@ -127,7 +121,7 @@ print_unsigned_long_long(unsigned long long x, unsigned int ui_base)
     }
 
     /* we can't do 64 bit division so break it up into two hex numbers */
-    upper = (unsigned int) (x >> 32llu);
+    upper = (unsigned int)(x >> 32llu);
     lower = (unsigned int) x & 0xffffffff;
 
     /* print first 32 bits if they exist */
@@ -150,21 +144,18 @@ print_unsigned_long_long(unsigned long long x, unsigned int ui_base)
     return n;
 }
 
-static inline bool_t
-isdigit(char c)
+static inline bool_t isdigit(char c)
 {
     return c >= '0' &&
            c <= '9';
 }
 
-static inline int
-atoi(char c)
+static inline int atoi(char c)
 {
     return c - '0';
 }
 
-static int
-vprintf(const char *format, va_list ap)
+static int vprintf(const char *format, va_list ap)
 {
     unsigned int n;
     unsigned int formatting;
@@ -305,8 +296,7 @@ word_t puts(const char *s)
     return 0;
 }
 
-word_t
-kprintf(const char *format, ...)
+word_t kprintf(const char *format, ...)
 {
     va_list args;
     word_t i;

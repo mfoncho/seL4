@@ -37,7 +37,7 @@ END_FUNC(arm_vector_table)
 #include <arch/machine/hardware.h>
 
 #include <arch/machine/registerset.h>
-#include <mode/api/constants.h>
+#include <sel4/sel4_arch/constants.h>
 
 BEGIN_FUNC(arm_undefined_inst_exception)
     /* Full save/restore, documented in arm_swi_syscall */
@@ -170,11 +170,6 @@ BEGIN_FUNC(arm_data_abort_exception)
     mrc p15, 0, sp, c13, c0, 4
 #endif /* CONFIG_ARCH_ARM_V6 */
 
-#ifdef ENABLE_SMP_SUPPORT 
-/* TODO, load the per-core kernel stack */
-#else
-    ldr r7, =ksCurThread
-#endif
     b c_handle_data_fault
 
 

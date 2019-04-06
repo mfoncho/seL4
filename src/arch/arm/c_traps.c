@@ -17,13 +17,12 @@
 #include <api/syscall.h>
 #include <machine/fpu.h>
 
-#include <benchmark/benchmark_track_types.h>
+#include <sel4/benchmark_track_types.h>
 #include <benchmark/benchmark_track.h>
 #include <benchmark/benchmark_utilisation.h>
 #include <arch/machine.h>
 
-void VISIBLE NORETURN
-c_handle_undefined_instruction(void)
+void VISIBLE NORETURN c_handle_undefined_instruction(void)
 {
     NODE_LOCK_SYS;
     c_entry_hook();
@@ -49,14 +48,17 @@ c_handle_undefined_instruction(void)
 #endif
 
     /* There's only one user-level fault on ARM, and the code is (0,0) */
+#ifdef CONFIG_ARCH_AARCH32
     handleUserLevelFault(0, 0);
+#else
+    handleUserLevelFault(getESR(), 0);
+#endif
     restore_user_context();
     UNREACHABLE();
 }
 
 #if defined(CONFIG_HAVE_FPU) && defined(CONFIG_ARCH_AARCH64)
-void VISIBLE NORETURN
-c_handle_enfp(void)
+void VISIBLE NORETURN c_handle_enfp(void)
 {
     c_entry_hook();
 
@@ -66,8 +68,7 @@ c_handle_enfp(void)
 }
 #endif /* CONFIG_HAVE_FPU */
 
-static inline void NORETURN
-c_handle_vm_fault(vm_fault_type_t type)
+static inline void NORETURN c_handle_vm_fault(vm_fault_type_t type)
 {
     NODE_LOCK_SYS;
     c_entry_hook();
@@ -82,20 +83,17 @@ c_handle_vm_fault(vm_fault_type_t type)
     UNREACHABLE();
 }
 
-void VISIBLE NORETURN
-c_handle_data_fault(void)
+void VISIBLE NORETURN c_handle_data_fault(void)
 {
     c_handle_vm_fault(seL4_DataFault);
 }
 
-void VISIBLE NORETURN
-c_handle_instruction_fault(void)
+void VISIBLE NORETURN c_handle_instruction_fault(void)
 {
     c_handle_vm_fault(seL4_InstructionFault);
 }
 
-void VISIBLE NORETURN
-c_handle_interrupt(void)
+void VISIBLE NORETURN c_handle_interrupt(void)
 {
     NODE_LOCK_IRQ_IF(getActiveIRQ() != irq_remote_call_ipi);
     c_entry_hook();
@@ -109,8 +107,7 @@ c_handle_interrupt(void)
     restore_user_context();
 }
 
-void NORETURN
-slowpath(syscall_t syscall)
+void NORETURN slowpath(syscall_t syscall)
 {
 #ifdef TRACK_KERNEL_ENTRIES
     ksKernelEntry.is_fastpath = 0;
@@ -121,8 +118,7 @@ slowpath(syscall_t syscall)
     UNREACHABLE();
 }
 
-void VISIBLE
-c_handle_syscall(word_t cptr, word_t msgInfo, syscall_t syscall)
+void VISIBLE c_handle_syscall(word_t cptr, word_t msgInfo, syscall_t syscall)
 {
     NODE_LOCK_SYS;
 
@@ -157,9 +153,10 @@ c_handle_syscall(word_t cptr, word_t msgInfo, syscall_t syscall)
 }
 
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
-VISIBLE NORETURN void
-c_handle_vcpu_fault(word_t hsr)
+VISIBLE NORETURN void c_handle_vcpu_fault(word_t hsr)
 {
+    NODE_LOCK_SYS;
+
     c_entry_hook();
 
 #ifdef TRACK_KERNEL_ENTRIES

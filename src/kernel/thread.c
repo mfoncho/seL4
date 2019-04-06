@@ -27,8 +27,7 @@ transferCaps(seL4_MessageInfo_t info, extra_caps_t caps,
              endpoint_t *endpoint, tcb_t *receiver,
              word_t *receiveBuffer);
 
-static inline bool_t PURE
-isBlocked(const tcb_t *thread)
+static inline bool_t PURE isBlocked(const tcb_t *thread)
 {
     switch (thread_state_get_tsType(thread->tcbState)) {
     case ThreadState_Inactive:
@@ -43,15 +42,13 @@ isBlocked(const tcb_t *thread)
     }
 }
 
-BOOT_CODE void
-configureIdleThread(tcb_t *tcb)
+BOOT_CODE void configureIdleThread(tcb_t *tcb)
 {
     Arch_configureIdleThread(tcb);
     setThreadState(tcb, ThreadState_IdleThreadState);
 }
 
-void
-activateThread(void)
+void activateThread(void)
 {
     switch (thread_state_get_tsType(NODE_STATE(ksCurThread)->tcbState)) {
     case ThreadState_Running:
@@ -78,16 +75,14 @@ activateThread(void)
     }
 }
 
-void
-suspend(tcb_t *target)
+void suspend(tcb_t *target)
 {
     cancelIPC(target);
     setThreadState(target, ThreadState_Inactive);
     tcbSchedDequeue(target);
 }
 
-void
-restart(tcb_t *target)
+void restart(tcb_t *target)
 {
     if (isBlocked(target)) {
         cancelIPC(target);
@@ -98,9 +93,8 @@ restart(tcb_t *target)
     }
 }
 
-void
-doIPCTransfer(tcb_t *sender, endpoint_t *endpoint, word_t badge,
-              bool_t grant, tcb_t *receiver)
+void doIPCTransfer(tcb_t *sender, endpoint_t *endpoint, word_t badge,
+                   bool_t grant, tcb_t *receiver)
 {
     void *receiveBuffer, *sendBuffer;
 
@@ -115,14 +109,13 @@ doIPCTransfer(tcb_t *sender, endpoint_t *endpoint, word_t badge,
     }
 }
 
-void
-doReplyTransfer(tcb_t *sender, tcb_t *receiver, cte_t *slot)
+void doReplyTransfer(tcb_t *sender, tcb_t *receiver, cte_t *slot, bool_t grant)
 {
     assert(thread_state_get_tsType(receiver->tcbState) ==
            ThreadState_BlockedOnReply);
 
     if (likely(seL4_Fault_get_seL4_FaultType(receiver->tcbFault) == seL4_Fault_NullFault)) {
-        doIPCTransfer(sender, NULL, 0, true, receiver);
+        doIPCTransfer(sender, NULL, 0, grant, receiver);
         /** GHOSTUPD: "(True, gs_set_assn cteDeleteOne_'proc (ucast cap_reply_cap))" */
         cteDeleteOne(slot);
         setThreadState(receiver, ThreadState_Running);
@@ -143,10 +136,9 @@ doReplyTransfer(tcb_t *sender, tcb_t *receiver, cte_t *slot)
     }
 }
 
-void
-doNormalTransfer(tcb_t *sender, word_t *sendBuffer, endpoint_t *endpoint,
-                 word_t badge, bool_t canGrant, tcb_t *receiver,
-                 word_t *receiveBuffer)
+void doNormalTransfer(tcb_t *sender, word_t *sendBuffer, endpoint_t *endpoint,
+                      word_t badge, bool_t canGrant, tcb_t *receiver,
+                      word_t *receiveBuffer)
 {
     word_t msgTransferred;
     seL4_MessageInfo_t tag;
@@ -176,9 +168,8 @@ doNormalTransfer(tcb_t *sender, word_t *sendBuffer, endpoint_t *endpoint,
     setRegister(receiver, badgeRegister, badge);
 }
 
-void
-doFaultTransfer(word_t badge, tcb_t *sender, tcb_t *receiver,
-                word_t *receiverIPCBuffer)
+void doFaultTransfer(word_t badge, tcb_t *sender, tcb_t *receiver,
+                     word_t *receiverIPCBuffer)
 {
     word_t sent;
     seL4_MessageInfo_t msgInfo;
@@ -191,13 +182,12 @@ doFaultTransfer(word_t badge, tcb_t *sender, tcb_t *receiver,
 }
 
 /* Like getReceiveSlots, this is specialised for single-cap transfer. */
-static seL4_MessageInfo_t
-transferCaps(seL4_MessageInfo_t info, extra_caps_t caps,
-             endpoint_t *endpoint, tcb_t *receiver,
-             word_t *receiveBuffer)
+static seL4_MessageInfo_t transferCaps(seL4_MessageInfo_t info, extra_caps_t caps,
+                                       endpoint_t *endpoint, tcb_t *receiver,
+                                       word_t *receiveBuffer)
 {
     word_t i;
-    cte_t* destSlot;
+    cte_t *destSlot;
 
     info = seL4_MessageInfo_set_extraCaps(info, 0);
     info = seL4_MessageInfo_set_capsUnwrapped(info, 0);
@@ -213,7 +203,7 @@ transferCaps(seL4_MessageInfo_t info, extra_caps_t caps,
         cap_t cap = slot->cap;
 
         if (cap_get_capType(cap) == cap_endpoint_cap &&
-                EP_PTR(cap_endpoint_cap_get_capEPPtr(cap)) == endpoint) {
+            EP_PTR(cap_endpoint_cap_get_capEPPtr(cap)) == endpoint) {
             /* If this is a cap to the endpoint on which the message was sent,
              * only transfer the badge, not the cap. */
             setExtraBadge(receiveBuffer,
@@ -253,8 +243,7 @@ void doNBRecvFailedTransfer(tcb_t *thread)
     setRegister(thread, badgeRegister, 0);
 }
 
-static void
-nextDomain(void)
+static void nextDomain(void)
 {
     ksDomScheduleIdx++;
     if (ksDomScheduleIdx >= ksDomScheduleLength) {
@@ -265,8 +254,7 @@ nextDomain(void)
     ksDomainTime = ksDomSchedule[ksDomScheduleIdx].length;
 }
 
-static void
-scheduleChooseNewThread(void)
+static void scheduleChooseNewThread(void)
 {
     if (ksDomainTime == 0) {
         nextDomain();
@@ -274,8 +262,7 @@ scheduleChooseNewThread(void)
     chooseThread();
 }
 
-void
-schedule(void)
+void schedule(void)
 {
     if (NODE_STATE(ksSchedulerAction) != SchedulerAction_ResumeCurrentThread) {
         bool_t was_runnable;
@@ -298,7 +285,7 @@ schedule(void)
                 NODE_STATE(ksCurThread) == NODE_STATE(ksIdleThread)
                 || (candidate->tcbPriority < NODE_STATE(ksCurThread)->tcbPriority);
             if (fastfail &&
-                    !isHighestPrio(ksCurDomain, candidate->tcbPriority)) {
+                !isHighestPrio(ksCurDomain, candidate->tcbPriority)) {
                 SCHED_ENQUEUE(candidate);
                 /* we can't, need to reschedule */
                 NODE_STATE(ksSchedulerAction) = SchedulerAction_ChooseNewThread;
@@ -323,8 +310,7 @@ schedule(void)
 #endif /* ENABLE_SMP_SUPPORT */
 }
 
-void
-chooseThread(void)
+void chooseThread(void)
 {
     word_t prio;
     word_t dom;
@@ -347,8 +333,7 @@ chooseThread(void)
     }
 }
 
-void
-switchToThread(tcb_t *thread)
+void switchToThread(tcb_t *thread)
 {
 #ifdef CONFIG_BENCHMARK_TRACK_UTILISATION
     benchmark_utilisation_switch(NODE_STATE(ksCurThread), thread);
@@ -358,8 +343,7 @@ switchToThread(tcb_t *thread)
     NODE_STATE(ksCurThread) = thread;
 }
 
-void
-switchToIdleThread(void)
+void switchToIdleThread(void)
 {
 #ifdef CONFIG_BENCHMARK_TRACK_UTILISATION
     benchmark_utilisation_switch(NODE_STATE(ksCurThread), NODE_STATE(ksIdleThread));
@@ -368,8 +352,7 @@ switchToIdleThread(void)
     NODE_STATE(ksCurThread) = NODE_STATE(ksIdleThread);
 }
 
-void
-setDomain(tcb_t *tptr, dom_t dom)
+void setDomain(tcb_t *tptr, dom_t dom)
 {
     tcbSchedDequeue(tptr);
     tptr->tcbDomain = dom;
@@ -381,14 +364,12 @@ setDomain(tcb_t *tptr, dom_t dom)
     }
 }
 
-void
-setMCPriority(tcb_t *tptr, prio_t mcp)
+void setMCPriority(tcb_t *tptr, prio_t mcp)
 {
     tptr->tcbMCP = mcp;
 }
 
-void
-setPriority(tcb_t *tptr, prio_t prio)
+void setPriority(tcb_t *tptr, prio_t prio)
 {
     tcbSchedDequeue(tptr);
     tptr->tcbPriority = prio;
@@ -402,11 +383,10 @@ setPriority(tcb_t *tptr, prio_t prio)
  * entry. Do not queue it yet, since a queue+unqueue operation is wasteful
  * if it will be picked. Instead, it waits in the 'ksSchedulerAction' site
  * on which the scheduler will take action. */
-void
-possibleSwitchTo(tcb_t* target)
+void possibleSwitchTo(tcb_t *target)
 {
     if (ksCurDomain != target->tcbDomain
-            SMP_COND_STATEMENT( || target->tcbAffinity != getCurrentCPUIndex())) {
+        SMP_COND_STATEMENT( || target->tcbAffinity != getCurrentCPUIndex())) {
         SCHED_ENQUEUE(target);
     } else if (NODE_STATE(ksSchedulerAction) != SchedulerAction_ResumeCurrentThread) {
         /* Too many threads want special treatment, use regular queues. */
@@ -417,28 +397,30 @@ possibleSwitchTo(tcb_t* target)
     }
 }
 
-void
-setThreadState(tcb_t *tptr, _thread_state_t ts)
+void setThreadState(tcb_t *tptr, _thread_state_t ts)
 {
     thread_state_ptr_set_tsType(&tptr->tcbState, ts);
     scheduleTCB(tptr);
 }
 
-void
-scheduleTCB(tcb_t *tptr)
+void scheduleTCB(tcb_t *tptr)
 {
     if (tptr == NODE_STATE(ksCurThread) &&
-            NODE_STATE(ksSchedulerAction) == SchedulerAction_ResumeCurrentThread &&
-            !isRunnable(tptr)) {
+        NODE_STATE(ksSchedulerAction) == SchedulerAction_ResumeCurrentThread &&
+        !isRunnable(tptr)) {
         rescheduleRequired();
     }
 }
 
-void
-timerTick(void)
+void timerTick(void)
 {
     if (likely(thread_state_get_tsType(NODE_STATE(ksCurThread)->tcbState) ==
-               ThreadState_Running)) {
+               ThreadState_Running)
+#ifdef CONFIG_VTX
+        || thread_state_get_tsType(NODE_STATE(ksCurThread)->tcbState) ==
+        ThreadState_RunningVM
+#endif
+       ) {
         if (NODE_STATE(ksCurThread)->tcbTimeSlice > 1) {
             NODE_STATE(ksCurThread)->tcbTimeSlice--;
         } else {
@@ -456,11 +438,10 @@ timerTick(void)
     }
 }
 
-void
-rescheduleRequired(void)
+void rescheduleRequired(void)
 {
     if (NODE_STATE(ksSchedulerAction) != SchedulerAction_ResumeCurrentThread
-            && NODE_STATE(ksSchedulerAction) != SchedulerAction_ChooseNewThread) {
+        && NODE_STATE(ksSchedulerAction) != SchedulerAction_ChooseNewThread) {
         SCHED_ENQUEUE(NODE_STATE(ksSchedulerAction));
     }
     NODE_STATE(ksSchedulerAction) = SchedulerAction_ChooseNewThread;

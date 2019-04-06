@@ -26,19 +26,6 @@
 #include <mode/machine_pl2.h>
 #include <mode/hardware.h>
 
-#define MRS(reg, v)  asm volatile("mrs %0," reg : "=r"(v))
-#define MSR(reg, v)                                \
-    do {                                           \
-        word_t _v = v;                             \
-        asm volatile("msr " reg ",%0" :: "r" (_v));\
-    }while(0)
-
-#define SYSTEM_WRITE_WORD(reg, v) MSR(reg, v)
-#define SYSTEM_READ_WORD(reg, v)  MRS(reg, v)
-#define SYSTEM_WRITE_64(reg, v)   MSR(reg, v)
-#define SYSTEM_READ_64(reg, v)    MRS(reg, v)
-
-
 #ifdef ENABLE_SMP_SUPPORT
 /* Use the first two SGI (Software Generated Interrupt) IDs
  * for seL4 IPI implementation. SGIs are per-core banked.
@@ -95,6 +82,13 @@ static inline void writeTPIDRURW(word_t reg)
     MSR("tpidr_el0", reg);
 }
 
+static inline word_t readTPIDRURO(void)
+{
+    word_t reg;
+    MRS("tpidr_el0", reg);
+    return reg;
+}
+
 static inline void writeTPIDRURO(word_t reg)
 {
     MSR("tpidrro_el0", reg);
@@ -136,7 +130,7 @@ static inline void setCurrentKernelVSpaceRoot(ttbr_t ttbr)
         MSR("ttbr0_el2", ttbr.words[0]);
         dsb();
         isb();
-        asm volatile ("ic ialluis");
+        asm volatile("ic ialluis");
         dsb();
     } else {
         MSR("ttbr1_el1", ttbr.words[0]);
@@ -180,12 +174,12 @@ static inline void setVtable(pptr_t addr)
 
 static inline void invalidateLocalTLB_EL2(void)
 {
-    asm volatile ("tlbi alle2");
+    asm volatile("tlbi alle2");
 }
 
 static inline void invalidateLocalTLB_EL1(void)
 {
-    asm volatile ("tlbi alle1");
+    asm volatile("tlbi alle1");
 }
 
 static inline void invalidateLocalTLB(void)
@@ -207,7 +201,7 @@ static inline void invalidateLocalTLB_ASID(asid_t asid)
     assert(asid < BIT(16));
 
     dsb();
-    asm volatile("tlbi aside1, %0" : : "r" (asid << 48));
+    asm volatile("tlbi aside1, %0" : : "r"(asid << 48));
     dsb();
     isb();
 }
@@ -215,7 +209,26 @@ static inline void invalidateLocalTLB_ASID(asid_t asid)
 static inline void invalidateLocalTLB_VAASID(word_t mva_plus_asid)
 {
     dsb();
-    asm volatile("tlbi vae1, %0" : : "r" (mva_plus_asid));
+    asm volatile("tlbi vae1, %0" : : "r"(mva_plus_asid));
+    dsb();
+    isb();
+}
+
+/* Invalidate all stage 1 and stage 2 translations used at
+ * EL1 with the current VMID which is specified by vttbr_el2 */
+static inline void invalidateLocalTLB_VMALLS12E1(void)
+{
+    asm volatile("tlbi vmalls12e1");
+    dsb();
+    isb();
+}
+
+/* Invalidate IPA with the current VMID */
+static inline void invalidateLocalTLB_IPA(word_t ipa)
+{
+    asm volatile("tlbi ipas2e1, %0" :: "r"(ipa));
+    dsb();
+    asm volatile("tlbi vmalle1");
     dsb();
     isb();
 }
@@ -224,25 +237,25 @@ void lockTLBEntry(vptr_t vaddr);
 
 static inline void cleanByVA(vptr_t vaddr, paddr_t paddr)
 {
-    asm volatile("dc cvac, %0" : : "r" (vaddr));
+    asm volatile("dc cvac, %0" : : "r"(vaddr));
     dmb();
 }
 
 static inline void cleanByVA_PoU(vptr_t vaddr, paddr_t paddr)
 {
-    asm volatile("dc cvau, %0" : : "r" (vaddr));
+    asm volatile("dc cvau, %0" : : "r"(vaddr));
     dmb();
 }
 
 static inline void invalidateByVA(vptr_t vaddr, paddr_t paddr)
 {
-    asm volatile("dc ivac, %0" : : "r" (vaddr));
+    asm volatile("dc ivac, %0" : : "r"(vaddr));
     dmb();
 }
 
 static inline void invalidateByVA_I(vptr_t vaddr, paddr_t paddr)
 {
-    asm volatile("ic ivau, %0" : : "r" (vaddr));
+    asm volatile("ic ivau, %0" : : "r"(vaddr));
     isb();
 }
 
@@ -254,7 +267,7 @@ static inline void invalidate_I_PoU(void)
 
 static inline void cleanInvalByVA(vptr_t vaddr, paddr_t paddr)
 {
-    asm volatile("dc civac, %0" : : "r" (vaddr));
+    asm volatile("dc civac, %0" : : "r"(vaddr));
     dsb();
 }
 
@@ -290,7 +303,7 @@ static inline word_t PURE getFAR(void)
 static inline word_t ats1e2r(word_t va)
 {
     word_t par;
-    asm volatile ("at s1e2r, %0" :: "r"(va));
+    asm volatile("at s1e2r, %0" :: "r"(va));
     MRS("par_el1", par);
     return par;
 }
@@ -298,7 +311,7 @@ static inline word_t ats1e2r(word_t va)
 static inline word_t ats1e1r(word_t va)
 {
     word_t par;
-    asm volatile ("at s1e1r, %0" :: "r"(va));
+    asm volatile("at s1e1r, %0" :: "r"(va));
     MRS("par_el1", par);
     return par;
 }
@@ -307,7 +320,7 @@ static inline word_t ats1e1r(word_t va)
 static inline word_t ats2e0r(word_t va)
 {
     word_t par;
-    asm volatile ("at s12e0r, %0" :: "r"(va));
+    asm volatile("at s12e0r, %0" :: "r"(va));
     MRS("par_el1", par);
     return par;
 }

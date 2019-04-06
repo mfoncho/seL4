@@ -26,8 +26,7 @@
 #include <plat/machine/intel-vtd.h>
 
 
-bool_t
-Arch_isFrameType(word_t type)
+bool_t Arch_isFrameType(word_t type)
 {
     switch (type) {
     case seL4_X86_4K:
@@ -41,8 +40,7 @@ Arch_isFrameType(word_t type)
     }
 }
 
-deriveCap_ret_t
-Mode_deriveCap(cte_t* slot, cap_t cap)
+deriveCap_ret_t Mode_deriveCap(cte_t *slot, cap_t cap)
 {
     deriveCap_ret_t ret;
 
@@ -53,6 +51,18 @@ Mode_deriveCap(cte_t* slot, cap_t cap)
             ret.status = EXCEPTION_NONE;
         } else {
             userError("Deriving a PML4 cap without an assigned ASID");
+            current_syscall_error.type = seL4_IllegalOperation;
+            ret.cap = cap_null_cap_new();
+            ret.status = EXCEPTION_SYSCALL_ERROR;
+        }
+        return ret;
+
+    case cap_pdpt_cap:
+        if (cap_pdpt_cap_get_capPDPTIsMapped(cap)) {
+            ret.cap = cap;
+            ret.status = EXCEPTION_NONE;
+        } else {
+            userError("Deriving an unmapped PTPD cap");
             current_syscall_error.type = seL4_IllegalOperation;
             ret.cap = cap_null_cap_new();
             ret.status = EXCEPTION_SYSCALL_ERROR;
@@ -158,8 +168,7 @@ bool_t CONST Mode_sameRegionAs(cap_t cap_a, cap_t cap_b)
     }
 }
 
-word_t
-Mode_getObjectSize(word_t t)
+word_t Mode_getObjectSize(word_t t)
 {
     switch (t) {
     case seL4_X64_PML4Object:
@@ -174,8 +183,7 @@ Mode_getObjectSize(word_t t)
     }
 }
 
-cap_t
-Mode_createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
+cap_t Mode_createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
 {
     switch (t) {
 
@@ -312,15 +320,14 @@ Mode_createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMe
     }
 }
 
-exception_t
-Mode_decodeInvocation(
+exception_t Mode_decodeInvocation(
     word_t label,
     word_t length,
     cptr_t cptr,
-    cte_t* slot,
+    cte_t *slot,
     cap_t cap,
     extra_caps_t extraCaps,
-    word_t* buffer
+    word_t *buffer
 )
 {
     switch (cap_get_capType(cap)) {

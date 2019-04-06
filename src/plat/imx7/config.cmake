@@ -18,13 +18,13 @@ if(KernelPlatformImx7Sabre)
     config_set(KernelPlatImx7 PLAT_IMX7 ON)
     config_set(KernelPlatform PLAT "imx7")
     set(KernelArmMach "imx" CACHE INTERNAL "")
+    list(APPEND KernelDTSList "tools/dts/imx7sabre.dts")
+    list(APPEND KernelDTSList "src/plat/imx7/overlay-imx7sabre.dts")
 else()
     config_set(KernelPlatImx7 PLAT_IMX7 OFF)
 endif()
 
 add_sources(
     DEP "KernelPlatImx7"
-    CFILES src/plat/imx7/machine/io.c
-           src/plat/imx7/machine/hardware.c
-           src/arch/arm/machine/generic_timer.c
+    CFILES src/arch/arm/machine/gic_pl390.c src/arch/arm/machine/l2c_nop.c
 )

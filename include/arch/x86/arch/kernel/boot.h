@@ -15,7 +15,7 @@
 #include <types.h>
 #include <plat/machine/acpi.h>
 #include <kernel/boot.h>
-#include <arch/api/bootinfo_types.h>
+#include <sel4/arch/bootinfo_types.h>
 
 typedef struct mem_p_regs {
     word_t count;
@@ -29,7 +29,8 @@ typedef struct ui_info {
 } ui_info_t;
 
 cap_t create_unmapped_it_frame_cap(pptr_t pptr, bool_t use_large);
-cap_t create_mapped_it_frame_cap(cap_t pd_cap, pptr_t pptr, vptr_t vptr, asid_t asid, bool_t use_large, bool_t executable);
+cap_t create_mapped_it_frame_cap(cap_t pd_cap, pptr_t pptr, vptr_t vptr, asid_t asid, bool_t use_large,
+                                 bool_t executable);
 
 bool_t init_sys_state(
     cpu_id_t      cpu_id,
@@ -38,7 +39,7 @@ bool_t init_sys_state(
     p_region_t    boot_mem_reuse_p_reg,
     /* parameters below not modeled in abstract specification */
     uint32_t      num_drhu,
-    paddr_t*      drhu_list,
+    paddr_t      *drhu_list,
     acpi_rmrr_list_t *rmrr_list,
     acpi_rsdp_t      *acpi_rsdp,
     seL4_X86_BootInfo_VBE *vbe,

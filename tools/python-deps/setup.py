@@ -28,16 +28,24 @@ from setuptools import setup
 DEPS = [
     'six',
     'future',
-    'tempita',
+    'jinja2',
     'lxml',
     'ply',
     'psutil',
-    'bs4'
+    'bs4',
+    'sh',
+    'pexpect',
+    'pyaml',
+    'jsonschema',
+    'pyfdt',
+    'cmake-format',
+    'guardonce',
+    'autopep8'
 ]
 
 setup(
     name='sel4-deps',
-    version='0.1.1',
+    version='0.2.3',
     description='Metapackage for downloading build dependencies for the seL4 microkernel',
     url="https://sel4.systems",
     licence='BSD2',

@@ -13,10 +13,10 @@
 #ifndef __ARCH_MODE_OBJECT_STRUCTURES_H_
 #define __ARCH_MODE_OBJECT_STRUCTURES_H_
 
-#include <api/macros.h>
+#include <sel4/macros.h>
 /* x86-64 specific object types */
-/* sysexit with rex.w prefix (64-bit) user code = cs + 32, user data = cs + 40.
- * without rex.w user code = cs + 16, user data = cs + 24, so we need to arrange
+/* sysexitq (64-bit) user code = cs + 32, user data = cs + 40.
+ * sysexit user code = cs + 16, user data = cs + 24, so we need to arrange
  * user CS and DS as 5 and 6.
  * */
 #define GDT_NULL    0
@@ -103,11 +103,6 @@ typedef pml4e_t vspace_root_t;
  * it contains 512 vroots.
  */
 
-enum asidSizeConstants {
-    asidHighBits = 3,
-    asidLowBits = seL4_ASIDPoolIndexBits
-};
-
 struct asid_pool {
     asid_map_t array[BIT(asidLowBits)];
 };
@@ -123,8 +118,7 @@ typedef struct asid_pool asid_pool_t;
 #define ASID_LOW(a)         (a & MASK(asidLowBits))
 #define ASID_HIGH(a)        ((a >> asidLowBits) & MASK(asidHighBits))
 
-static inline asid_t PURE
-cap_get_capMappedASID(cap_t cap)
+static inline asid_t PURE cap_get_capMappedASID(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -151,8 +145,7 @@ cap_get_capMappedASID(cap_t cap)
     }
 }
 
-static inline word_t CONST
-cap_get_modeCapSizeBits(cap_t cap)
+static inline word_t CONST cap_get_modeCapSizeBits(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -170,8 +163,7 @@ cap_get_modeCapSizeBits(cap_t cap)
     }
 }
 
-static inline bool_t CONST
-cap_get_modeCapIsPhysical(cap_t cap)
+static inline bool_t CONST cap_get_modeCapIsPhysical(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -190,8 +182,7 @@ cap_get_modeCapIsPhysical(cap_t cap)
     }
 }
 
-static inline void * CONST
-cap_get_modeCapPtr(cap_t cap)
+static inline void *CONST cap_get_modeCapPtr(cap_t cap)
 {
     cap_tag_t ctag;
 

@@ -81,6 +81,24 @@ enum {
 
 enum {
     seL4_VCPUReg_SCTLR = 0,
+    seL4_VCPUReg_ACTLR,
+    seL4_VCPUReg_TTBCR,
+    seL4_VCPUReg_TTBR0,
+    seL4_VCPUReg_TTBR1,
+    seL4_VCPUReg_DACR,
+    seL4_VCPUReg_DFSR,
+    seL4_VCPUReg_IFSR,
+    seL4_VCPUReg_ADFSR,
+    seL4_VCPUReg_AIFSR,
+    seL4_VCPUReg_DFAR,
+    seL4_VCPUReg_IFAR,
+    seL4_VCPUReg_PRRR,
+    seL4_VCPUReg_NMRR,
+    seL4_VCPUReg_CIDR,
+    seL4_VCPUReg_TPIDRPRW,
+    seL4_VCPUReg_FPEXC,
+    seL4_VCPUReg_CNTV_TVAL,
+    seL4_VCPUReg_CNTV_CTL,
     seL4_VCPUReg_LRsvc,
     seL4_VCPUReg_SPsvc,
     seL4_VCPUReg_LRabt,
@@ -96,6 +114,11 @@ enum {
     seL4_VCPUReg_R10fiq,
     seL4_VCPUReg_R11fiq,
     seL4_VCPUReg_R12fiq,
+    seL4_VCPUReg_SPSRsvc,
+    seL4_VCPUReg_SPSRabt,
+    seL4_VCPUReg_SPSRund,
+    seL4_VCPUReg_SPSRirq,
+    seL4_VCPUReg_SPSRfiq,
     seL4_VCPUReg_Num,
 } seL4_VCPUReg;
 
@@ -129,7 +152,7 @@ enum {
 #define seL4_SuperSectionBits 25
 #define seL4_PGDEntryBits 3
 #define seL4_PGDIndexBits 2
-#define seL4_PGDBits (seL4_PGDIndexBits + seL4_PGDEntryBits)
+#define seL4_PGDBits 5
 #define seL4_PageDirEntryBits 3
 #define seL4_PageDirIndexBits 11
 #define seL4_VCPUBits 12
@@ -145,6 +168,11 @@ enum {
 
 #define seL4_PageDirBits 14
 
+#ifdef CONFIG_ARM_SMMU
+#define seL4_NumASIDPoolsBits 6
+#else
+#define seL4_NumASIDPoolsBits 7
+#endif
 #define seL4_ASIDPoolBits 12
 #define seL4_ASIDPoolIndexBits 10
 #define seL4_ARM_VCPUBits       12
@@ -159,6 +187,9 @@ enum {
 SEL4_SIZE_SANITY(seL4_PageTableEntryBits, seL4_PageTableIndexBits, seL4_PageTableBits);
 SEL4_SIZE_SANITY(seL4_PageDirEntryBits,   seL4_PageDirIndexBits,   seL4_PageDirBits);
 SEL4_SIZE_SANITY(seL4_WordSizeBits, seL4_ASIDPoolIndexBits, seL4_ASIDPoolBits);
+#ifdef seL4_PGDBits
+SEL4_SIZE_SANITY(seL4_PGDEntryBits, seL4_PGDIndexBits, seL4_PGDBits);
+#endif
 #endif
 
 /* Untyped size limits */

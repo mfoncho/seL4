@@ -35,8 +35,7 @@
 /* The haskell function 'handleEvent' is split into 'handleXXX' variants
  * for each event causing a kernel entry */
 
-exception_t
-handleInterruptEntry(void)
+exception_t handleInterruptEntry(void)
 {
     irq_t irq;
 
@@ -58,8 +57,7 @@ handleInterruptEntry(void)
     return EXCEPTION_NONE;
 }
 
-exception_t
-handleUnknownSyscall(word_t w)
+exception_t handleUnknownSyscall(word_t w)
 {
 #ifdef CONFIG_PRINTING
     if (w == SysDebugPutChar) {
@@ -75,12 +73,12 @@ handleUnknownSyscall(word_t w)
 #endif
 #ifdef CONFIG_DEBUG_BUILD
     if (w == SysDebugHalt) {
-        tcb_t *tptr = NODE_STATE(ksCurThread);
+        tcb_t *UNUSED tptr = NODE_STATE(ksCurThread);
         printf("Debug halt syscall from user thread %p \"%s\"\n", tptr, tptr->tcbName);
         halt();
     }
     if (w == SysDebugSnapshot) {
-        tcb_t *tptr = NODE_STATE(ksCurThread);
+        tcb_t *UNUSED tptr = NODE_STATE(ksCurThread);
         printf("Debug snapshot syscall from user thread %p \"%s\"\n", tptr, tptr->tcbName);
         capDL();
         return EXCEPTION_NONE;
@@ -107,7 +105,7 @@ handleUnknownSyscall(word_t w)
             halt();
         }
         /* Add 1 to the IPC buffer to skip the message info word */
-        name = (const char*)(lookupIPCBuffer(true, NODE_STATE(ksCurThread)) + 1);
+        name = (const char *)(lookupIPCBuffer(true, NODE_STATE(ksCurThread)) + 1);
         if (!name) {
             userError("SysDebugNameThread: Failed to lookup IPC buffer, halting");
             halt();
@@ -125,7 +123,8 @@ handleUnknownSyscall(word_t w)
 
 #ifdef CONFIG_DANGEROUS_CODE_INJECTION
     if (w == SysDebugRun) {
-        ((void (*) (void *))getRegister(NODE_STATE(ksCurThread), capRegister))((void*)getRegister(NODE_STATE(ksCurThread), msgInfoRegister));
+        ((void (*)(void *))getRegister(NODE_STATE(ksCurThread), capRegister))((void *)getRegister(NODE_STATE(ksCurThread),
+                                                                                                  msgInfoRegister));
         return EXCEPTION_NONE;
     }
 #endif
@@ -229,8 +228,7 @@ handleUnknownSyscall(word_t w)
     return EXCEPTION_NONE;
 }
 
-exception_t
-handleUserLevelFault(word_t w_a, word_t w_b)
+exception_t handleUserLevelFault(word_t w_a, word_t w_b)
 {
     current_fault = seL4_Fault_UserException_new(w_a, w_b);
     handleFault(NODE_STATE(ksCurThread));
@@ -241,8 +239,7 @@ handleUserLevelFault(word_t w_a, word_t w_b)
     return EXCEPTION_NONE;
 }
 
-exception_t
-handleVMFaultEvent(vm_fault_type_t vm_faultType)
+exception_t handleVMFaultEvent(vm_fault_type_t vm_faultType)
 {
     exception_t status;
 
@@ -258,8 +255,7 @@ handleVMFaultEvent(vm_fault_type_t vm_faultType)
 }
 
 
-static exception_t
-handleInvocation(bool_t isCall, bool_t isBlocking)
+static exception_t handleInvocation(bool_t isCall, bool_t isBlocking)
 {
     seL4_MessageInfo_t info;
     cptr_t cptr;
@@ -322,7 +318,7 @@ handleInvocation(bool_t isCall, bool_t isBlocking)
     }
 
     if (unlikely(
-                thread_state_get_tsType(thread->tcbState) == ThreadState_Restart)) {
+            thread_state_get_tsType(thread->tcbState) == ThreadState_Restart)) {
         if (isCall) {
             replyFromKernel_success_empty(thread);
         }
@@ -332,8 +328,7 @@ handleInvocation(bool_t isCall, bool_t isBlocking)
     return EXCEPTION_NONE;
 }
 
-static void
-handleReply(void)
+static void handleReply(void)
 {
     cte_t *callerSlot;
     cap_t callerCap;
@@ -352,7 +347,8 @@ handleReply(void)
         /* Haskell error:
          * "handleReply: caller must not be the current thread" */
         assert(caller != NODE_STATE(ksCurThread));
-        doReplyTransfer(NODE_STATE(ksCurThread), caller, callerSlot);
+        doReplyTransfer(NODE_STATE(ksCurThread), caller, callerSlot,
+                        cap_reply_cap_get_capReplyCanGrant(callerCap));
         return;
     }
 
@@ -367,8 +363,7 @@ handleReply(void)
     fail("handleReply: invalid caller cap");
 }
 
-static void
-handleRecv(bool_t isBlocking)
+static void handleRecv(bool_t isBlocking)
 {
     word_t epCPtr;
     lookupCap_ret_t lu_ret;
@@ -401,7 +396,7 @@ handleRecv(bool_t isBlocking)
         notification_t *ntfnPtr;
         tcb_t *boundTCB;
         ntfnPtr = NTFN_PTR(cap_notification_cap_get_capNtfnPtr(lu_ret.cap));
-        boundTCB = (tcb_t*)notification_ptr_get_ntfnBoundTCB(ntfnPtr);
+        boundTCB = (tcb_t *)notification_ptr_get_ntfnBoundTCB(ntfnPtr);
         if (unlikely(!cap_notification_cap_get_capNtfnCanReceive(lu_ret.cap)
                      || (boundTCB && boundTCB != NODE_STATE(ksCurThread)))) {
             current_lookup_fault = lookup_fault_missing_capability_new(0);
@@ -421,16 +416,14 @@ handleRecv(bool_t isBlocking)
     }
 }
 
-static void
-handleYield(void)
+static void handleYield(void)
 {
     tcbSchedDequeue(NODE_STATE(ksCurThread));
     SCHED_APPEND_CURRENT_TCB;
     rescheduleRequired();
 }
 
-exception_t
-handleSyscall(syscall_t syscall)
+exception_t handleSyscall(syscall_t syscall)
 {
     exception_t ret;
     irq_t irq;

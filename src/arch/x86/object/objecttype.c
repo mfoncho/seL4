@@ -24,7 +24,7 @@
 #include <arch/object/vcpu.h>
 #include <plat/machine/intel-vtd.h>
 
-deriveCap_ret_t Arch_deriveCap(cte_t* slot, cap_t cap)
+deriveCap_ret_t Arch_deriveCap(cte_t *slot, cap_t cap)
 {
     deriveCap_ret_t ret;
 
@@ -57,6 +57,10 @@ deriveCap_ret_t Arch_deriveCap(cte_t* slot, cap_t cap)
     case cap_asid_pool_cap:
         ret.cap = cap;
         ret.status = EXCEPTION_NONE;
+        return ret;
+    case cap_io_port_control_cap:
+        ret.status = EXCEPTION_NONE;
+        ret.cap = cap_null_cap_new();
         return ret;
     case cap_io_port_cap:
         ret.cap = cap;
@@ -140,43 +144,18 @@ deriveCap_ret_t Arch_deriveCap(cte_t* slot, cap_t cap)
 
 cap_t CONST Arch_updateCapData(bool_t preserve, word_t data, cap_t cap)
 {
-    switch (cap_get_capType(cap)) {
+    /* Avoid a switch statement with just a 'default' case as the C parser does not like this */
 #ifdef CONFIG_IOMMU
+    switch (cap_get_capType(cap)) {
     case cap_io_space_cap: {
         io_space_capdata_t w = { { data } };
         uint16_t PCIDevice = io_space_capdata_get_PCIDevice(w);
         uint16_t domainID = io_space_capdata_get_domainID(w);
         if (!preserve && cap_io_space_cap_get_capPCIDevice(cap) == 0 &&
-                domainID >= x86KSFirstValidIODomain &&
-                domainID != 0                        &&
-                domainID <= MASK(x86KSnumIODomainIDBits)) {
+            domainID >= x86KSFirstValidIODomain &&
+            domainID != 0                        &&
+            domainID <= MASK(x86KSnumIODomainIDBits)) {
             return cap_io_space_cap_new(domainID, PCIDevice);
-        } else {
-            return cap_null_cap_new();
-        }
-    }
-#endif
-    case cap_io_port_cap: {
-        io_port_capdata_t w = { .words = { data } };
-        uint16_t firstPort = io_port_capdata_get_firstPort(w);
-        uint16_t lastPort = io_port_capdata_get_lastPort(w);
-        uint16_t capFirstPort = cap_io_port_cap_get_capIOPortFirstPort(cap);
-        uint16_t capLastPort = cap_io_port_cap_get_capIOPortLastPort(cap);
-        assert(capFirstPort <= capLastPort);
-
-        /* Ensure input data is ordered correctly. */
-        if (firstPort > lastPort) {
-            return cap_null_cap_new();
-        }
-
-        /* Allow the update if the new cap has range no larger than the old
-         * cap. */
-        if ((firstPort >= capFirstPort) && (lastPort <= capLastPort)) {
-            return cap_io_port_cap_new(firstPort, lastPort
-#ifdef CONFIG_VTX
-                                       , VPID_INVALID
-#endif
-                                      );
         } else {
             return cap_null_cap_new();
         }
@@ -185,6 +164,8 @@ cap_t CONST Arch_updateCapData(bool_t preserve, word_t data, cap_t cap)
     default:
         return cap;
     }
+#endif
+    return cap;
 }
 
 cap_t CONST Arch_maskCapRights(seL4_CapRights_t cap_rights_mask, cap_t cap)
@@ -234,6 +215,7 @@ finaliseCap_ret_t Arch_finaliseCap(cap_t cap, bool_t final)
         }
         break;
     case cap_asid_control_cap:
+    case cap_io_port_control_cap:
         break;
     case cap_io_port_cap:
 #ifdef CONFIG_VTX
@@ -241,6 +223,11 @@ finaliseCap_ret_t Arch_finaliseCap(cap_t cap, bool_t final)
                                 cap_io_port_cap_get_capIOPortFirstPort(cap),
                                 cap_io_port_cap_get_capIOPortLastPort(cap));
 #endif
+        if (final) {
+            fc_ret.remainder = cap_null_cap_new();
+            fc_ret.cleanupInfo = cap;
+            return fc_ret;
+        }
         break;
 #ifdef CONFIG_IOMMU
     case cap_io_space_cap:
@@ -265,7 +252,7 @@ finaliseCap_ret_t Arch_finaliseCap(cap_t cap, bool_t final)
     case cap_ept_pml4_cap:
         if (final && cap_ept_pml4_cap_get_capPML4IsMapped(cap)) {
             deleteEPTASID(cap_ept_pml4_cap_get_capPML4MappedASID(cap),
-                          (ept_pml4e_t*)cap_ept_pml4_cap_get_capPML4BasePtr(cap));
+                          (ept_pml4e_t *)cap_ept_pml4_cap_get_capPML4BasePtr(cap));
         }
         break;
 
@@ -274,7 +261,7 @@ finaliseCap_ret_t Arch_finaliseCap(cap_t cap, bool_t final)
             unmapEPTPDPT(
                 cap_ept_pdpt_cap_get_capPDPTMappedASID(cap),
                 cap_ept_pdpt_cap_get_capPDPTMappedAddress(cap),
-                (ept_pdpte_t*)cap_ept_pdpt_cap_get_capPDPTBasePtr(cap));
+                (ept_pdpte_t *)cap_ept_pdpt_cap_get_capPDPTBasePtr(cap));
         }
         break;
 
@@ -283,7 +270,7 @@ finaliseCap_ret_t Arch_finaliseCap(cap_t cap, bool_t final)
             unmapEPTPageDirectory(
                 cap_ept_pd_cap_get_capPDMappedASID(cap),
                 cap_ept_pd_cap_get_capPDMappedAddress(cap),
-                (ept_pde_t*)cap_ept_pd_cap_get_capPDBasePtr(cap));
+                (ept_pde_t *)cap_ept_pd_cap_get_capPDBasePtr(cap));
         }
         break;
 
@@ -292,7 +279,7 @@ finaliseCap_ret_t Arch_finaliseCap(cap_t cap, bool_t final)
             unmapEPTPageTable(
                 cap_ept_pt_cap_get_capPTMappedASID(cap),
                 cap_ept_pt_cap_get_capPTMappedAddress(cap),
-                (ept_pte_t*)cap_ept_pt_cap_get_capPTBasePtr(cap));
+                (ept_pte_t *)cap_ept_pt_cap_get_capPTBasePtr(cap));
         }
         break;
 #endif
@@ -314,8 +301,8 @@ bool_t CONST Arch_sameRegionAs(cap_t cap_a, cap_t cap_b)
             word_t botA, botB, topA, topB;
             botA = cap_frame_cap_get_capFBasePtr(cap_a);
             botB = cap_frame_cap_get_capFBasePtr(cap_b);
-            topA = botA + MASK (pageBitsForSize(cap_frame_cap_get_capFSize(cap_a)));
-            topB = botB + MASK (pageBitsForSize(cap_frame_cap_get_capFSize(cap_b)));
+            topA = botA + MASK(pageBitsForSize(cap_frame_cap_get_capFSize(cap_a)));
+            topB = botB + MASK(pageBitsForSize(cap_frame_cap_get_capFSize(cap_b)));
             return ((botA <= botB) && (topA >= topB) && (botB <= topB));
         }
         break;
@@ -347,14 +334,19 @@ bool_t CONST Arch_sameRegionAs(cap_t cap_a, cap_t cap_b)
         }
         break;
 
+    case cap_io_port_control_cap:
+        if (cap_get_capType(cap_b) == cap_io_port_control_cap ||
+            cap_get_capType(cap_b) == cap_io_port_cap) {
+            return true;
+        }
+        break;
+
     case cap_io_port_cap:
         if (cap_get_capType(cap_b) == cap_io_port_cap) {
-            word_t botA, botB, topA, topB;
-            botA = cap_io_port_cap_get_capIOPortFirstPort(cap_a);
-            botB = cap_io_port_cap_get_capIOPortFirstPort(cap_b);
-            topA = cap_io_port_cap_get_capIOPortLastPort(cap_a);
-            topB = cap_io_port_cap_get_capIOPortLastPort(cap_b);
-            return ((botA <= botB) && (topA >= topB));
+            return  cap_io_port_cap_get_capIOPortFirstPort(cap_a) ==
+                    cap_io_port_cap_get_capIOPortFirstPort(cap_b) &&
+                    cap_io_port_cap_get_capIOPortLastPort(cap_a) ==
+                    cap_io_port_cap_get_capIOPortLastPort(cap_b);
         }
         break;
 
@@ -419,8 +411,9 @@ bool_t CONST Arch_sameRegionAs(cap_t cap_a, cap_t cap_b)
 
 bool_t CONST Arch_sameObjectAs(cap_t cap_a, cap_t cap_b)
 {
-    if (cap_get_capType(cap_a) == cap_io_port_cap) {
-        return cap_get_capType(cap_b) == cap_io_port_cap;
+    if (cap_get_capType(cap_a) == cap_io_port_control_cap &&
+        cap_get_capType(cap_b) == cap_io_port_cap) {
+        return false;
     }
     if (cap_get_capType(cap_a) == cap_frame_cap) {
         if (cap_get_capType(cap_b) == cap_frame_cap) {
@@ -435,8 +428,7 @@ bool_t CONST Arch_sameObjectAs(cap_t cap_a, cap_t cap_b)
     return Arch_sameRegionAs(cap_a, cap_b);
 }
 
-word_t
-Arch_getObjectSize(word_t t)
+word_t Arch_getObjectSize(word_t t)
 {
     switch (t) {
     case seL4_X86_4K:
@@ -468,8 +460,7 @@ Arch_getObjectSize(word_t t)
     }
 }
 
-cap_t
-Arch_createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
+cap_t Arch_createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMemory)
 {
 #ifdef CONFIG_VTX
     switch (t) {
@@ -514,24 +505,25 @@ Arch_createObject(object_t t, void *regionBase, word_t userSize, bool_t deviceMe
 #endif
 }
 
-exception_t
-Arch_decodeInvocation(
+exception_t Arch_decodeInvocation(
     word_t invLabel,
     word_t length,
     cptr_t cptr,
-    cte_t* slot,
+    cte_t *slot,
     cap_t cap,
     extra_caps_t excaps,
     bool_t call,
-    word_t* buffer
+    word_t *buffer
 )
 {
     switch (cap_get_capType(cap)) {
     case cap_asid_control_cap:
     case cap_asid_pool_cap:
         return decodeX86MMUInvocation(invLabel, length, cptr, slot, cap, excaps, buffer);
+    case cap_io_port_control_cap:
+        return decodeX86PortControlInvocation(invLabel, length, cptr, slot, cap, excaps, buffer);
     case cap_io_port_cap:
-        return decodeX86PortInvocation(invLabel, length, cptr, slot, cap, excaps, buffer);
+        return decodeX86PortInvocation(invLabel, length, cptr, slot, cap, excaps, call, buffer);
 #ifdef CONFIG_IOMMU
     case cap_io_space_cap:
         return decodeX86IOSpaceInvocation(invLabel, cap);
@@ -552,9 +544,18 @@ Arch_decodeInvocation(
     }
 }
 
-void
-Arch_prepareThreadDelete(tcb_t *thread)
+void Arch_prepareThreadDelete(tcb_t *thread)
 {
     /* Notify the lazy FPU module about this thread's deletion. */
     fpuThreadDelete(thread);
+}
+
+void Arch_postCapDeletion(cap_t cap)
+{
+    if (cap_get_capType(cap) == cap_io_port_cap) {
+        uint16_t first_port = cap_io_port_cap_get_capIOPortFirstPort(cap);
+        uint16_t last_port = cap_io_port_cap_get_capIOPortLastPort(cap);
+
+        freeIOPortRange(first_port, last_port);
+    }
 }

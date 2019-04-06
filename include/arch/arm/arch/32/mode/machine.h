@@ -25,23 +25,23 @@
 #include <mode/hardware.h>
 #include <kernel/stack.h>
 
-#define MRC(cpreg, v)  asm volatile("mrc  " cpreg :  "=r"(v))
-#define MRRC(cpreg, v) asm volatile("mrrc " cpreg :  "=r"(v))
-#define MCR(cpreg, v)                               \
-    do {                                            \
-        word_t _v = v;                            \
-        asm volatile("mcr  " cpreg :: "r" (_v));    \
-    }while(0)
-#define MCRR(cpreg, v)                              \
-    do {                                            \
-        uint64_t _v = v;                            \
-        asm volatile("mcrr " cpreg :: "r" (_v));    \
-    }while(0)
+/* The new spec requires the use of vmsr/vmrs to access floating point
+ * registers (including control registers).
+ *
+ * GCC will still accept the old MRC/MCR instructions but Clang will not.
+ * Both result in the same encoding and are here only to satisfy compilers. */
+#define VMRS(vfp_reg, v) asm volatile(".fpu vfp\n" \
+                                      "vmrs %0, " vfp_reg : "=r"(v))
+#define VMSR(vfp_reg, v)                                 \
+    do {                                                 \
+        word_t _v = v;                                   \
+        asm volatile(".fpu vfp\n"                        \
+                     "vmsr " vfp_reg ", %0" :: "r"(_v)); \
+    } while(0)
 
-#define SYSTEM_WRITE_WORD(reg, v) MCR(reg, v)
-#define SYSTEM_READ_WORD(reg, v)  MRC(reg, v)
-#define SYSTEM_WRITE_64(reg, v)  MCRR(reg, v)
-#define SYSTEM_READ_64(reg, v)   MRRC(reg, v)
+/* VFP registers. */
+#define FPEXC      "fpexc" /* 32-bit Floating-Point Exception Control register */
+#define FPSCR      "fpscr" /* 32-bit Floating-Point Status and Control register */
 
 /** Generic timer CP15 registers **/
 #define CNTFRQ     " p15, 0,  %0, c14,  c0, 0" /* 32-bit RW Counter Frequency register */
@@ -63,7 +63,6 @@
 #define ID_DFR0    " p15, 0,  %0,  c0,  c1, 2" /* 32-bit RO Debug feature register */
 #define ID_PFR1    " p15, 0,  %0,  c0,  c1, 1" /* 32-bit RO CPU feature register */
 #define CPACR      " p15, 0,  %0,  c1,  c0, 2" /* 32-bit Architectural Feature Access Control Register */
-#define FPEXC      " p10, 7,  %0, cr8, cr0, 0" /* 32-bit Floating-Point Exception Control register */
 
 #ifdef ENABLE_SMP_SUPPORT
 /* Use the first two SGI (Software Generated Interrupt) IDs
@@ -138,18 +137,67 @@ static inline void writeContextID(word_t id)
 
 /* Address space control */
 
-static inline void writeTTBR0(paddr_t addr)
+static inline word_t readTTBR0(void)
+{
+    word_t val = 0;
+    asm volatile("mrc p15, 0, %0, c2, c0, 0":"=r"(val):);
+    return val;
+}
+
+static inline void writeTTBR0(word_t val)
+{
+    asm volatile("mcr p15, 0, %0, c2, c0, 0":: "r"(val));
+}
+
+static inline void writeTTBR0Ptr(paddr_t addr)
 {
     /* Mask supplied address (retain top 19 bits).  Set the lookup cache bits:
      * outer write-back cacheable, no allocate on write, inner non-cacheable.
      */
-    asm volatile("mcr p15, 0, %0, c2, c0, 0" : :
-                 "r"((addr & 0xffffe000) | 0x18));
+    writeTTBR0((addr & 0xffffe000) | 0x18);
+}
+
+static inline word_t readTTBR1(void)
+{
+    word_t val = 0;
+    asm volatile("mrc p15, 0, %0, c2, c0, 1":"=r"(val):);
+    return val;
+}
+
+static inline void writeTTBR1(word_t val)
+{
+    asm volatile("mcr p15, 0, %0, c2, c0, 1":: "r"(val));
+}
+
+
+static inline word_t readTTBCR(void)
+{
+    word_t val = 0;
+    asm volatile("mrc p15, 0, %0, c2, c0, 2":"=r"(val):);
+    return val;
+}
+
+static inline void writeTTBCR(word_t val)
+{
+    asm volatile("mcr p15, 0, %0, c2, c0, 2":: "r"(val));
 }
 
 static inline void writeTPIDRURW(word_t reg)
 {
     asm volatile("mcr p15, 0, %0, c13, c0, 2" :: "r"(reg));
+}
+
+static inline word_t readTPIDRURW(void)
+{
+    word_t reg;
+    asm volatile("mrc p15, 0, %0, c13, c0, 2" : "=r"(reg));
+    return reg;
+}
+
+
+static inline void writeTPIDRURO(word_t reg)
+{
+    asm volatile("mcr p15, 0, %0, c13, c0, 3" :: "r"(reg));
 }
 
 static inline void writeTPIDRPRW(word_t reg)
@@ -164,31 +212,41 @@ static inline word_t readTPIDRPRW(void)
     return reg;
 }
 
-static inline word_t readTPIDRURW(void)
+static inline word_t readTPIDRURO(void)
 {
     word_t reg;
-    asm volatile("mrc p15, 0, %0, c13, c0, 2" : "=r"(reg));
+    asm volatile("mrc p15, 0, %0, c13, c0, 3" : "=r"(reg));
     return reg;
 }
+
 
 static inline word_t readMPIDR(void)
 {
     word_t reg;
-    asm volatile ("mrc p15, 0, %0, c0, c0, 5" : "=r"(reg));
+    asm volatile("mrc p15, 0, %0, c0, c0, 5" : "=r"(reg));
+    return reg;
+}
+
+static inline void writeDACR(word_t reg)
+{
+    asm volatile("mcr p15, 0, %0, c3, c0, 0" :: "r"(reg));
+}
+
+static inline word_t readDACR(void)
+{
+    word_t reg;
+    asm volatile("mrc p15, 0, %0, c3, c0, 0" : "=r"(reg));
     return reg;
 }
 
 static inline void setCurrentPD(paddr_t addr)
 {
-    /* Mask supplied address (retain top 19 bits).  Set the lookup cache bits:
-     * outer write-back cacheable, no allocate on write, inner non-cacheable.
-     */
     /* Before changing the PD ensure all memory stores have completed */
     if (config_set(CONFIG_ARM_HYPERVISOR_SUPPORT)) {
         setCurrentPDPL2(addr);
     } else {
         dsb();
-        writeTTBR0(addr);
+        writeTTBR0Ptr(addr);
         /* Ensure the PD switch completes before we do anything else */
         isb();
     }
@@ -200,14 +258,22 @@ static inline void setKernelStack(word_t stack_address)
     /* Setup kernel stack pointer.
      * Load the (per-core) kernel stack pointer to TPIDRPRW for faster reloads on traps.
      */
-    writeTPIDRPRW(stack_address);
+    if (config_set(CONFIG_ARM_HYPERVISOR_SUPPORT)) {
+        setHTPIDR(stack_address);
+    } else {
+        writeTPIDRPRW(stack_address);
+    }
 #endif /* CONFIG_ARCH_ARM_V6 */
 }
 
 static inline word_t getKernelStack(void)
 {
 #ifndef CONFIG_ARCH_ARM_V6
-    return readTPIDRPRW();
+    if (config_set(CONFIG_ARM_HYPERVISOR_SUPPORT)) {
+        return getHTPIDR();
+    } else {
+        return readTPIDRPRW();
+    }
 #else
     return ((word_t) kernel_stack_alloc[0]) + BIT(CONFIG_KERNEL_STACK_BITS);
 #endif /* CONFIG_ARCH_ARM_V6 */
@@ -366,11 +432,93 @@ static inline word_t PURE getIFSR(void)
     return IFSR;
 }
 
+static inline void setIFSR(word_t ifsr)
+{
+    asm volatile("mcr p15, 0, %0, c5, c0, 1" : : "r"(ifsr));
+}
+
 static inline word_t PURE getDFSR(void)
 {
     word_t DFSR;
     asm volatile("mrc p15, 0, %0, c5, c0, 0" : "=r"(DFSR));
     return DFSR;
+}
+
+static inline void setDFSR(word_t dfsr)
+{
+    asm volatile("mcr p15, 0, %0, c5, c0, 0" : : "r"(dfsr));
+}
+
+static inline word_t PURE getADFSR(void)
+{
+    word_t ADFSR;
+    asm volatile("mrc p15, 0, %0, c5, c1, 0" : "=r"(ADFSR));
+    return ADFSR;
+}
+
+static inline void setADFSR(word_t adfsr)
+{
+    asm volatile("mcr p15, 0, %0, c5, c1, 0" : : "r"(adfsr));
+}
+
+static inline word_t PURE getAIFSR(void)
+{
+    word_t AIFSR;
+    asm volatile("mrc p15, 0, %0, c5, c1, 1" : "=r"(AIFSR));
+    return AIFSR;
+}
+
+static inline void setAIFSR(word_t aifsr)
+{
+    asm volatile("mcr p15, 0, %0, c5, c1, 1" : : "r"(aifsr));
+}
+
+static inline word_t PURE getDFAR(void)
+{
+    word_t DFAR;
+    asm volatile("mrc p15, 0, %0, c6, c0, 0" : "=r"(DFAR));
+    return DFAR;
+}
+
+static inline void setDFAR(word_t dfar)
+{
+    asm volatile("mcr p15, 0, %0, c6, c0, 0" : : "r"(dfar));
+}
+
+static inline word_t PURE getIFAR(void)
+{
+    word_t IFAR;
+    asm volatile("mrc p15, 0, %0, c6, c0, 2" : "=r"(IFAR));
+    return IFAR;
+}
+
+static inline void setIFAR(word_t ifar)
+{
+    asm volatile("mcr p15, 0, %0, c6, c0, 2" : : "r"(ifar));
+}
+
+static inline word_t getPRRR(void)
+{
+    word_t PRRR;
+    asm volatile("mrc p15, 0, %0, c10, c2, 0" : "=r"(PRRR));
+    return PRRR;
+}
+
+static inline void setPRRR(word_t prrr)
+{
+    asm volatile("mcr p15, 0, %0, c10, c2, 0" : : "r"(prrr));
+}
+
+static inline word_t getNMRR(void)
+{
+    word_t NMRR;
+    asm volatile("mrc p15, 0, %0, c10, c2, 1" : "=r"(NMRR));
+    return NMRR;
+}
+
+static inline void setNMRR(word_t nmrr)
+{
+    asm volatile("mcr p15, 0, %0, c10, c2, 1" : : "r"(nmrr));
 }
 
 static inline word_t PURE getFAR(void)
@@ -380,16 +528,28 @@ static inline word_t PURE getFAR(void)
     return FAR;
 }
 
+static inline word_t getCIDR(void)
+{
+    word_t CIDR;
+    asm volatile("mrc p15, 0, %0, c13, c0, 1" : "=r"(CIDR));
+    return CIDR;
+}
+
+static inline void setCIDR(word_t cidr)
+{
+    asm volatile("mcr p15, 0, %0, c13, c0, 1" : : "r"(cidr));
+}
+
 static inline word_t getACTLR(void)
 {
     word_t ACTLR;
-    asm volatile ("mrc p15, 0, %0, c1, c0, 1" : "=r"(ACTLR));
+    asm volatile("mrc p15, 0, %0, c1, c0, 1" : "=r"(ACTLR));
     return ACTLR;
 }
 
 static inline void setACTLR(word_t actlr)
 {
-    asm volatile ("mcr p15, 0, %0, c1, c0, 1" :: "r"(actlr));
+    asm volatile("mcr p15, 0, %0, c1, c0, 1" :: "r"(actlr));
 }
 
 void arch_clean_invalidate_caches(void);

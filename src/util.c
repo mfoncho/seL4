@@ -23,8 +23,7 @@ typedef unsigned long __attribute__((__may_alias__)) ulong_alias;
  *
  * 'n' and 's' must be word aligned.
  */
-void
-memzero(void *s, unsigned long n)
+void memzero(void *s, unsigned long n)
 {
     uint8_t *p = s;
 
@@ -45,8 +44,7 @@ memzero(void *s, unsigned long n)
     }
 }
 
-void* VISIBLE
-memset(void *s, unsigned long c, unsigned long n)
+void *VISIBLE memset(void *s, unsigned long c, unsigned long n)
 {
     uint8_t *p;
 
@@ -66,8 +64,7 @@ memset(void *s, unsigned long c, unsigned long n)
     return s;
 }
 
-void* VISIBLE
-memcpy(void* ptr_dst, const void* ptr_src, unsigned long n)
+void *VISIBLE memcpy(void *ptr_dst, const void *ptr_src, unsigned long n)
 {
     uint8_t *p;
     const uint8_t *q;
@@ -79,14 +76,13 @@ memcpy(void* ptr_dst, const void* ptr_src, unsigned long n)
     return ptr_dst;
 }
 
-int PURE
-strncmp(const char* s1, const char* s2, int n)
+int PURE strncmp(const char *s1, const char *s2, int n)
 {
     word_t i;
     int diff;
 
     for (i = 0; i < n; i++) {
-        diff = ((unsigned char*)s1)[i] - ((unsigned char*)s2)[i];
+        diff = ((unsigned char *)s1)[i] - ((unsigned char *)s2)[i];
         if (diff != 0 || s1[i] == '\0') {
             return diff;
         }
@@ -95,8 +91,7 @@ strncmp(const char* s1, const char* s2, int n)
     return 0;
 }
 
-long CONST
-char_to_long(char c)
+long CONST char_to_long(char c)
 {
     if (c >= '0' && c <= '9') {
         return c - '0';
@@ -108,8 +103,7 @@ char_to_long(char c)
     return -1;
 }
 
-long PURE
-str_to_long(const char* str)
+long PURE str_to_long(const char *str)
 {
     unsigned int base;
     long res;
@@ -141,3 +135,45 @@ str_to_long(const char* str)
 
     return val;
 }
+
+#ifdef CONFIG_ARCH_RISCV
+uint32_t __clzsi2(uint32_t x)
+{
+    uint32_t count = 0;
+    while (!(x & 0x80000000U) && count < 34) {
+        x <<= 1;
+        count++;
+    }
+    return count;
+}
+
+uint32_t __ctzsi2(uint32_t x)
+{
+    uint32_t count = 0;
+    while (!(x & 0x000000001) && count <= 32) {
+        x >>= 1;
+        count++;
+    }
+    return count;
+}
+
+uint32_t __clzdi2(uint64_t x)
+{
+    uint32_t count = 0;
+    while (!(x & 0x8000000000000000U) && count < 65) {
+        x <<= 1;
+        count++;
+    }
+    return count;
+}
+
+uint32_t __ctzdi2(uint64_t x)
+{
+    uint32_t count = 0;
+    while (!(x & 0x00000000000000001) && count <= 64) {
+        x >>= 1;
+        count++;
+    }
+    return count;
+}
+#endif /* CONFIG_ARCH_RISCV */

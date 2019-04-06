@@ -44,8 +44,7 @@ BOOT_DATA static volatile int node_boot_lock = 0;
  * Split mem_reg about reserved_reg. If memory exists in the lower
  * segment, insert it. If memory exists in the upper segment, return it.
  */
-BOOT_CODE static region_t
-insert_region_excluded(region_t mem_reg, region_t reserved_reg)
+BOOT_CODE static region_t insert_region_excluded(region_t mem_reg, region_t reserved_reg)
 {
     region_t residual_reg = mem_reg;
     bool_t result UNUSED;
@@ -80,8 +79,7 @@ insert_region_excluded(region_t mem_reg, region_t reserved_reg)
     return residual_reg;
 }
 
-BOOT_CODE static region_t
-get_reserved_region(int i, pptr_t res_reg_end)
+BOOT_CODE static region_t get_reserved_region(int i, pptr_t res_reg_end)
 {
     region_t res_reg = mode_reserved_region[i];
 
@@ -91,14 +89,7 @@ get_reserved_region(int i, pptr_t res_reg_end)
     return res_reg;
 }
 
-BOOT_CODE static int
-get_num_reserved_region(void)
-{
-    return sizeof(mode_reserved_region) / sizeof(region_t);
-}
-
-BOOT_CODE static void
-init_freemem(region_t ui_reg)
+BOOT_CODE static void init_freemem(region_t ui_reg)
 {
     word_t i;
     bool_t result UNUSED;
@@ -127,10 +118,10 @@ init_freemem(region_t ui_reg)
         /* Adjust region if it exceeds the kernel window
          * Note that we compare physical address in case of overflow.
          */
-        if (pptr_to_paddr((void*)cur_reg.end) > PADDR_TOP) {
+        if (pptr_to_paddr((void *)cur_reg.end) > PADDR_TOP) {
             cur_reg.end = PPTR_TOP;
         }
-        if (pptr_to_paddr((void*)cur_reg.start) > PADDR_TOP) {
+        if (pptr_to_paddr((void *)cur_reg.start) > PADDR_TOP) {
             cur_reg.start = PPTR_TOP;
         }
 
@@ -151,8 +142,7 @@ init_freemem(region_t ui_reg)
     }
 }
 
-BOOT_CODE static void
-init_irqs(cap_t root_cnode_cap)
+BOOT_CODE static void init_irqs(cap_t root_cnode_cap)
 {
     irq_t i;
 
@@ -188,8 +178,7 @@ init_irqs(cap_t root_cnode_cap)
     write_slot(SLOT_PTR(pptr_of_cap(root_cnode_cap), seL4_CapIRQControl), cap_irq_control_cap_new());
 }
 
-BOOT_CODE static bool_t
-create_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg)
+BOOT_CODE static bool_t create_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg)
 {
     seL4_SlotPos   slot_pos_before;
     seL4_SlotPos   slot_pos_after;
@@ -198,7 +187,14 @@ create_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg)
 
     slot_pos_before = ndks_boot.slot_pos_cur;
     create_kernel_untypeds(root_cnode_cap, boot_mem_reuse_reg, slot_pos_before);
+    UNUSED paddr_t current_region_pos = 0;
     for (i = 0; i < get_num_dev_p_regs(); i++) {
+        /* It is required that untyped regions are non-overlapping.
+         * We assume that hardware regions are defined in ascending order to make
+         * overlapping checks simpler
+         */
+        assert(get_dev_p_reg(i).start >= current_region_pos);
+        current_region_pos = get_dev_p_reg(i).end;
         dev_reg = paddr_to_pptr_reg(get_dev_p_reg(i));
         if (!create_untypeds_for_region(root_cnode_cap, true,
                                         dev_reg, slot_pos_before)) {
@@ -219,8 +215,7 @@ create_untypeds(cap_t root_cnode_cap, region_t boot_mem_reuse_reg)
  * It does NOT initialise any kernel state.
  * @return For the verification build, this currently returns true always.
  */
-BOOT_CODE static bool_t
-init_cpu(void)
+BOOT_CODE static bool_t init_cpu(void)
 {
     bool_t haveHWFPU;
 
@@ -296,16 +291,14 @@ init_cpu(void)
 
 /* This and only this function initialises the platform. It does NOT initialise any kernel state. */
 
-BOOT_CODE static void
-init_plat(void)
+BOOT_CODE static void init_plat(void)
 {
     initIRQController();
     initL2Cache();
 }
 
 #ifdef ENABLE_SMP_SUPPORT
-BOOT_CODE static bool_t
-try_init_kernel_secondary_core(void)
+BOOT_CODE static bool_t try_init_kernel_secondary_core(void)
 {
     /* need to first wait until some kernel init has been done */
     while (!node_boot_lock);
@@ -325,8 +318,7 @@ try_init_kernel_secondary_core(void)
     return true;
 }
 
-BOOT_CODE static void
-release_secondary_cpus(void)
+BOOT_CODE static void release_secondary_cpus(void)
 {
 
     /* release the cpus at the same time */
@@ -343,7 +335,7 @@ release_secondary_cpus(void)
      * turns on the cache. Thus, we do not need to clean and invaliate the cache.
      */
     cleanInvalidateL1Caches();
-    plat_cleanInvalidateCache();
+    plat_cleanInvalidateL2Cache();
 #endif
 
     /* Wait until all the secondary cores are done initialising */
@@ -356,8 +348,7 @@ release_secondary_cpus(void)
 
 /* Main kernel initialisation function. */
 
-static BOOT_CODE bool_t
-try_init_kernel(
+static BOOT_CODE bool_t try_init_kernel(
     paddr_t ui_p_reg_start,
     paddr_t ui_p_reg_end,
     sword_t pv_offset,
@@ -437,7 +428,7 @@ try_init_kernel(
     if (config_set(CONFIG_ARM_SMMU)) {
         ndks_boot.bi_frame->ioSpaceCaps = create_iospace_caps(root_cnode_cap);
         if (ndks_boot.bi_frame->ioSpaceCaps.start == 0 &&
-                ndks_boot.bi_frame->ioSpaceCaps.end == 0) {
+            ndks_boot.bi_frame->ioSpaceCaps.end == 0) {
             return false;
         }
     } else {
@@ -515,11 +506,11 @@ try_init_kernel(
 
     /* create all of the untypeds. Both devices and kernel window memory */
     if (!create_untypeds(
-                root_cnode_cap,
+            root_cnode_cap,
     (region_t) {
     kernelBase, (pptr_t)ki_boot_end
     } /* reusable boot code/data */
-            )) {
+        )) {
         return false;
     }
 
@@ -554,8 +545,7 @@ try_init_kernel(
     return true;
 }
 
-BOOT_CODE VISIBLE void
-init_kernel(
+BOOT_CODE VISIBLE void init_kernel(
     paddr_t ui_p_reg_start,
     paddr_t ui_p_reg_end,
     sword_t pv_offset,
@@ -584,7 +574,7 @@ init_kernel(
 #endif /* ENABLE_SMP_SUPPORT */
 
     if (!result) {
-        fail ("Kernel init failed for some reason :(");
+        fail("Kernel init failed for some reason :(");
     }
 
     schedule();

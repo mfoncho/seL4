@@ -14,7 +14,7 @@
 #include <config.h>
 #include <assert.h>
 #include <util.h>
-#include <api/macros.h>
+#include <sel4/macros.h>
 #include <api/types.h>
 #include <arch/types.h>
 #include <arch/object/structures_gen.h>
@@ -27,7 +27,7 @@ typedef struct arch_tcb {
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
     /* Pointer to associated VCPU. NULL if not associated.
      * tcb->tcbVCPU->vcpuTCB == tcb. */
-    struct vcpu* tcbVCPU;
+    struct vcpu *tcbVCPU;
 #endif
 } arch_tcb_t;
 
@@ -89,29 +89,8 @@ typedef word_t pde_type_t;
 #define LPAE_PT_PTR(r) ((lpae_pte_t *)r)
 #define LPAE_PT_REF(p) ((unsigned int)p)
 
-struct user_data {
-    word_t words[BIT(ARMSmallPageBits) / sizeof(word_t)];
-};
-
-typedef struct user_data user_data_t;
-
-struct user_data_device {
-    word_t words[BIT(ARMSmallPageBits) / sizeof(word_t)];
-};
-
-typedef struct user_data user_data_device_t;
-
-enum asidSizeConstants {
-#ifdef CONFIG_ARM_SMMU
-    asidHighBits = 6,
-#else
-    asidHighBits = 7,
-#endif
-    asidLowBits = seL4_ASIDPoolIndexBits
-};
-
 struct asid_pool {
-    pde_t* array[BIT(asidLowBits)];
+    pde_t *array[BIT(asidLowBits)];
 };
 
 typedef struct asid_pool asid_pool_t;
@@ -129,8 +108,7 @@ typedef struct asid_pool asid_pool_t;
 #define ASID_LOW(a) (a & MASK(asidLowBits))
 #define ASID_HIGH(a) ((a >> asidLowBits) & MASK(asidHighBits))
 
-static inline cap_t CONST
-cap_small_frame_cap_set_capFMappedASID(cap_t cap, word_t asid)
+static inline cap_t CONST cap_small_frame_cap_set_capFMappedASID(cap_t cap, word_t asid)
 {
     cap = cap_small_frame_cap_set_capFMappedASIDLow(cap,
                                                     asid & MASK(asidLowBits));
@@ -138,15 +116,13 @@ cap_small_frame_cap_set_capFMappedASID(cap_t cap, word_t asid)
                                                       (asid >> asidLowBits) & MASK(asidHighBits));
 }
 
-static inline word_t CONST
-cap_small_frame_cap_get_capFMappedASID(cap_t cap)
+static inline word_t CONST cap_small_frame_cap_get_capFMappedASID(cap_t cap)
 {
     return (cap_small_frame_cap_get_capFMappedASIDHigh(cap) << asidLowBits) +
            cap_small_frame_cap_get_capFMappedASIDLow(cap);
 }
 
-static inline cap_t CONST
-cap_frame_cap_set_capFMappedASID(cap_t cap, word_t asid)
+static inline cap_t CONST cap_frame_cap_set_capFMappedASID(cap_t cap, word_t asid)
 {
     cap = cap_frame_cap_set_capFMappedASIDLow(cap,
                                               asid & MASK(asidLowBits));
@@ -154,15 +130,13 @@ cap_frame_cap_set_capFMappedASID(cap_t cap, word_t asid)
                                                 (asid >> asidLowBits) & MASK(asidHighBits));
 }
 
-static inline word_t CONST
-cap_frame_cap_get_capFMappedASID(cap_t cap)
+static inline word_t CONST cap_frame_cap_get_capFMappedASID(cap_t cap)
 {
     return (cap_frame_cap_get_capFMappedASIDHigh(cap) << asidLowBits) +
            cap_frame_cap_get_capFMappedASIDLow(cap);
 }
 
-static inline word_t CONST
-generic_frame_cap_get_capFMappedASID(cap_t cap)
+static inline word_t CONST generic_frame_cap_get_capFMappedASID(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -178,8 +152,7 @@ generic_frame_cap_get_capFMappedASID(cap_t cap)
     }
 }
 
-static inline cap_t CONST
-generic_frame_cap_set_capFMappedAddress(cap_t cap, word_t asid, word_t addr)
+static inline cap_t CONST generic_frame_cap_set_capFMappedAddress(cap_t cap, word_t asid, word_t addr)
 {
     cap_tag_t ctag;
 
@@ -198,15 +171,13 @@ generic_frame_cap_set_capFMappedAddress(cap_t cap, word_t asid, word_t addr)
     }
 }
 
-static inline void
-generic_frame_cap_ptr_set_capFMappedAddress(cap_t *cap_ptr, word_t asid,
-                                            word_t addr)
+static inline void generic_frame_cap_ptr_set_capFMappedAddress(cap_t *cap_ptr, word_t asid,
+                                                               word_t addr)
 {
     *cap_ptr = generic_frame_cap_set_capFMappedAddress(*cap_ptr, asid, addr);
 }
 
-static inline vm_rights_t CONST
-generic_frame_cap_get_capFVMRights(cap_t cap)
+static inline vm_rights_t CONST generic_frame_cap_get_capFVMRights(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -226,8 +197,7 @@ generic_frame_cap_get_capFVMRights(cap_t cap)
     }
 }
 
-static inline word_t CONST
-generic_frame_cap_get_capFBasePtr(cap_t cap)
+static inline word_t CONST generic_frame_cap_get_capFBasePtr(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -247,8 +217,7 @@ generic_frame_cap_get_capFBasePtr(cap_t cap)
     }
 }
 
-static inline word_t CONST
-generic_frame_cap_get_capFSize(cap_t cap)
+static inline word_t CONST generic_frame_cap_get_capFSize(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -268,14 +237,12 @@ generic_frame_cap_get_capFSize(cap_t cap)
     }
 }
 
-static inline word_t CONST
-generic_frame_cap_get_capFIsMapped(cap_t cap)
+static inline word_t CONST generic_frame_cap_get_capFIsMapped(cap_t cap)
 {
     return generic_frame_cap_get_capFMappedASID(cap) != 0;
 }
 
-static inline word_t CONST
-generic_frame_cap_get_capFMappedAddress(cap_t cap)
+static inline word_t CONST generic_frame_cap_get_capFMappedAddress(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -290,8 +257,7 @@ generic_frame_cap_get_capFMappedAddress(cap_t cap)
     }
 }
 
-static inline word_t CONST
-generic_frame_cap_get_capFIsDevice(cap_t cap)
+static inline word_t CONST generic_frame_cap_get_capFIsDevice(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -306,8 +272,7 @@ generic_frame_cap_get_capFIsDevice(cap_t cap)
     }
 }
 
-static inline word_t CONST
-cap_get_archCapSizeBits(cap_t cap)
+static inline word_t CONST cap_get_archCapSizeBits(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -345,8 +310,7 @@ cap_get_archCapSizeBits(cap_t cap)
     }
 }
 
-static inline bool_t CONST
-cap_get_archCapIsPhysical(cap_t cap)
+static inline bool_t CONST cap_get_archCapIsPhysical(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -388,8 +352,7 @@ cap_get_archCapIsPhysical(cap_t cap)
     }
 }
 
-static inline void * CONST
-cap_get_archCapPtr(cap_t cap)
+static inline void *CONST cap_get_archCapPtr(cap_t cap)
 {
     cap_tag_t ctag;
 
@@ -437,8 +400,7 @@ cap_get_archCapPtr(cap_t cap)
  */
 enum { pte_pte_invalid = 2 };
 
-static inline word_t CONST
-pte_get_pteType(pte_t pte)
+static inline word_t CONST pte_get_pteType(pte_t pte)
 {
     if (pte_get_pteSize(pte) == pte_pte_small) {
         return pte_pte_small;
@@ -449,8 +411,7 @@ pte_get_pteType(pte_t pte)
     }
 }
 
-static inline word_t PURE
-pte_ptr_get_pteType(pte_t *pte_ptr)
+static inline word_t PURE pte_ptr_get_pteType(pte_t *pte_ptr)
 {
     if (pte_ptr_get_pteSize(pte_ptr) == pte_pte_small) {
         return pte_pte_small;

@@ -42,15 +42,15 @@ static inline void armv_contextSwitch_HWASID(pde_t *cap_pd, hw_asid_t hw_asid)
      * do does not need a DSB
      */
     dsb();
-    writeTTBR0(addrFromPPtr(armKSGlobalPD));
+    writeTTBR0Ptr(addrFromPPtr(armKSGlobalPD));
     isb();
     setHardwareASID(hw_asid);
-    writeTTBR0(addrFromPPtr(cap_pd));
+    writeTTBR0Ptr(addrFromPPtr(cap_pd));
     isb();
 #endif
 }
 
-static inline void armv_contextSwitch(pde_t* cap_pd, asid_t asid)
+static inline void armv_contextSwitch(pde_t *cap_pd, asid_t asid)
 {
     armv_contextSwitch_HWASID(cap_pd, getHWASID(asid));
 }

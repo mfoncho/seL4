@@ -61,6 +61,9 @@
 #define FRO_MASK    0xFF
 #define FI          12
 #define SID_MASK    0xFFFF
+#define SID_BUS(a)  (MASK(8) & (a >> 8))
+#define SID_DEV(a)  (MASK(5) & (a >> 3))
+#define SID_FUNC(a) (MASK(3) & a)
 #define FR_MASK     0xFF
 #define FAULT_TYPE  30
 #define FAULT       31
@@ -91,12 +94,12 @@ typedef uint32_t drhu_id_t;
 
 static inline uint32_t vtd_read32(drhu_id_t drhu_id, uint32_t offset)
 {
-    return *(volatile uint32_t*)(PPTR_DRHU_START + (drhu_id << PAGE_BITS) + offset);
+    return *(volatile uint32_t *)(PPTR_DRHU_START + (drhu_id << PAGE_BITS) + offset);
 }
 
 static inline void vtd_write32(drhu_id_t drhu_id, uint32_t offset, uint32_t value)
 {
-    *(volatile uint32_t*)(PPTR_DRHU_START + (drhu_id << PAGE_BITS) + offset) = value;
+    *(volatile uint32_t *)(PPTR_DRHU_START + (drhu_id << PAGE_BITS) + offset) = value;
 }
 
 
@@ -236,7 +239,8 @@ static void vtd_process_faults(drhu_id_t i)
             reason = vtd_read32(i, fr_reg + 12) & FR_MASK;
 
             printf("IOMMU: DMA %s page fault ", fault_type ? "read" : "write");
-            printf("from bus/dev/fun 0x%x ", source_id);
+            printf("from 0x%x (bus: 0x%lx/dev: 0x%lx/fun: 0x%lx) ", source_id,
+                   SID_BUS(source_id), SID_DEV(source_id), SID_FUNC(source_id));
             printf("on address 0x%x:%x ", address[1], address[0]);
             printf("with reason code 0x%x\n", reason);
 
@@ -263,18 +267,16 @@ void vtd_handle_fault(void)
     }
 }
 
-BOOT_CODE static void
-vtd_create_root_table(void)
+BOOT_CODE static void vtd_create_root_table(void)
 {
-    x86KSvtdRootTable = (void*)alloc_region(VTD_RT_SIZE_BITS);
-    memzero((void*)x86KSvtdRootTable, BIT(VTD_RT_SIZE_BITS));
+    x86KSvtdRootTable = (void *)alloc_region(VTD_RT_SIZE_BITS);
+    memzero((void *)x86KSvtdRootTable, BIT(VTD_RT_SIZE_BITS));
 }
 
 /* This function is a simplistic duplication of some of the logic
  * in iospace.c
  */
-BOOT_CODE static void
-vtd_map_reserved_page(vtd_cte_t *vtd_context_table, int context_index, paddr_t addr)
+BOOT_CODE static void vtd_map_reserved_page(vtd_cte_t *vtd_context_table, int context_index, paddr_t addr)
 {
     int i;
     vtd_pte_t *iopt;
@@ -282,7 +284,7 @@ vtd_map_reserved_page(vtd_cte_t *vtd_context_table, int context_index, paddr_t a
     /* first check for the first page table */
     vtd_cte_t *vtd_context_slot = vtd_context_table + context_index;
     if (!vtd_cte_ptr_get_present(vtd_context_slot)) {
-        iopt = (vtd_pte_t*)alloc_region(seL4_IOPageTableBits);
+        iopt = (vtd_pte_t *)alloc_region(seL4_IOPageTableBits);
         if (!iopt) {
             fail("Failed to allocate IO page table");
         }
@@ -299,7 +301,7 @@ vtd_map_reserved_page(vtd_cte_t *vtd_context_table, int context_index, paddr_t a
         x86KSFirstValidIODomain++;
         flushCacheRange(vtd_context_slot, VTD_CTE_SIZE_BITS);
     } else {
-        iopt = (vtd_pte_t*)paddr_to_pptr(vtd_cte_ptr_get_asr(vtd_context_slot));
+        iopt = (vtd_pte_t *)paddr_to_pptr(vtd_cte_ptr_get_asr(vtd_context_slot));
     }
     /* now recursively find and map page tables */
     for (i = x86KSnumIOPTLevels - 1; i >= 0; i--) {
@@ -309,7 +311,7 @@ vtd_map_reserved_page(vtd_cte_t *vtd_context_table, int context_index, paddr_t a
         if (VTD_PT_INDEX_BITS * i >= 32) {
             iopt_index = 0;
         } else {
-            iopt_index = ( (addr >> seL4_PageBits) >> (VTD_PT_INDEX_BITS * i)) & MASK(VTD_PT_INDEX_BITS);
+            iopt_index = ((addr >> seL4_PageBits) >> (VTD_PT_INDEX_BITS * i)) & MASK(VTD_PT_INDEX_BITS);
         }
         vtd_pte_slot = iopt + iopt_index;
         if (i == 0) {
@@ -318,7 +320,7 @@ vtd_map_reserved_page(vtd_cte_t *vtd_context_table, int context_index, paddr_t a
             flushCacheRange(vtd_pte_slot, VTD_PTE_SIZE_BITS);
         } else {
             if (!vtd_pte_ptr_get_write(vtd_pte_slot)) {
-                iopt = (vtd_pte_t*)alloc_region(seL4_IOPageTableBits);
+                iopt = (vtd_pte_t *)alloc_region(seL4_IOPageTableBits);
                 if (!iopt) {
                     fail("Failed to allocate IO page table");
                 }
@@ -328,21 +330,20 @@ vtd_map_reserved_page(vtd_cte_t *vtd_context_table, int context_index, paddr_t a
                 *vtd_pte_slot = vtd_pte_new(pptr_to_paddr(iopt), 1, 1);
                 flushCacheRange(vtd_pte_slot, VTD_PTE_SIZE_BITS);
             } else {
-                iopt = (vtd_pte_t*)paddr_to_pptr(vtd_pte_ptr_get_addr(vtd_pte_slot));
+                iopt = (vtd_pte_t *)paddr_to_pptr(vtd_pte_ptr_get_addr(vtd_pte_slot));
             }
         }
     }
 }
 
-BOOT_CODE static void
-vtd_create_context_table(
+BOOT_CODE static void vtd_create_context_table(
     uint8_t   bus,
     uint32_t  max_num_iopt_levels,
     acpi_rmrr_list_t *rmrr_list
 )
 {
     word_t i;
-    vtd_cte_t* vtd_context_table = (vtd_cte_t*)alloc_region(VTD_CT_SIZE_BITS);
+    vtd_cte_t *vtd_context_table = (vtd_cte_t *)alloc_region(VTD_CT_SIZE_BITS);
     if (!vtd_context_table) {
         fail("Failed to allocate context table");
     }
@@ -368,8 +369,7 @@ vtd_create_context_table(
     }
 }
 
-BOOT_CODE static bool_t
-vtd_enable(cpu_id_t cpu_id)
+BOOT_CODE static bool_t vtd_enable(cpu_id_t cpu_id)
 {
     drhu_id_t i;
     uint32_t status = 0;
@@ -434,8 +434,7 @@ vtd_enable(cpu_id_t cpu_id)
     return true;
 }
 
-BOOT_CODE bool_t
-vtd_init(
+BOOT_CODE bool_t vtd_init(
     cpu_id_t  cpu_id,
     uint32_t  num_drhu,
     acpi_rmrr_list_t *rmrr_list

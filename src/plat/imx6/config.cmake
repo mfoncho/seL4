@@ -18,11 +18,19 @@ if(KernelPlatformWandQ OR KernelPlatformSabre)
     config_set(KernelPlatImx6 PLAT_IMX6 ON)
     config_set(KernelPlatform PLAT "imx6")
     set(KernelArmMach "imx" CACHE INTERNAL "")
+
+    if(KernelPlatformWandQ)
+        list(APPEND KernelDTSList "tools/dts/wandq.dts")
+        list(APPEND KernelDTSList "src/plat/imx6/overlay-wandq.dts")
+    else()
+        list(APPEND KernelDTSList "tools/dts/sabre.dts")
+        list(APPEND KernelDTSList "src/plat/imx6/overlay-sabre.dts")
+    endif()
 else()
     config_set(KernelPlatImx6 PLAT_IMX6 OFF)
 endif()
 
 add_sources(
     DEP "KernelPlatImx6"
-    CFILES src/plat/imx6/machine/io.c
+    CFILES src/arch/arm/machine/l2c_310.c src/arch/arm/machine/gic_pl390.c
 )
